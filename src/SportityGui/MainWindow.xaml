@@ -1,0 +1,332 @@
+<Window x:Class="SportityGui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:vm="clr-namespace:SportityGui.ViewModels"
+        xmlns:conv="clr-namespace:SportityGui.Converters"
+        xmlns:icons="http://metro.mahapps.com/winfx/xaml/iconpacks"
+        ui:WindowHelper.UseModernWindowStyle="True"
+        Title="SportityGui" Height="750" Width="1200"
+        MinHeight="500" MinWidth="800"
+        Background="#F5F4F0"
+        KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVis" />
+        <conv:InverseBoolConverter x:Key="InvBool" />
+        <conv:BoolToFontWeightConverter x:Key="BoolToFontWeight" />
+        <conv:NotNullToVisibilityConverter x:Key="NotNullToVis" />
+        <conv:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVis" />
+
+        <!-- Unread dot style -->
+        <Style x:Key="UnreadBadge" TargetType="Ellipse">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Height" Value="8" />
+            <Setter Property="Fill" Value="#0078D4" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- Tree item template -->
+        <HierarchicalDataTemplate x:Key="TreeTemplate"
+                                  DataType="{x:Type vm:TreeItemViewModel}"
+                                  ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal" Margin="2,3">
+                <!-- Icon -->
+                <icons:PackIconMaterial x:Name="ItemIcon" Width="16" Height="16"
+                                        VerticalAlignment="Center" Margin="0,0,6,0"
+                                        Kind="Folder" Foreground="#0078D4" />
+                <!-- Name -->
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                           FontWeight="{Binding ShowUnreadBadge, Converter={StaticResource BoolToFontWeight}}" />
+                <!-- Unread dot -->
+                <Ellipse Style="{StaticResource UnreadBadge}"
+                         Visibility="{Binding ShowUnreadBadge, Converter={StaticResource BoolToVis}}" />
+            </StackPanel>
+
+            <HierarchicalDataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Type}" Value="File">
+                    <Setter TargetName="ItemIcon" Property="Kind" Value="FileDocument" />
+                    <Setter TargetName="ItemIcon" Property="Foreground" Value="#E8A000" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Type}" Value="Text">
+                    <Setter TargetName="ItemIcon" Property="Kind" Value="MessageText" />
+                    <Setter TargetName="ItemIcon" Property="Foreground" Value="#5C9EFF" />
+                </DataTrigger>
+            </HierarchicalDataTemplate.Triggers>
+        </HierarchicalDataTemplate>
+
+        <!-- Event list item style -->
+        <DataTemplate x:Key="EventTemplate" DataType="{x:Type vm:EventViewModel}">
+            <TextBlock Text="{Binding Event.Name}" Padding="4,6" TextTrimming="CharacterEllipsis" />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ═══ TOP TOOLBAR ═══ -->
+        <Border Grid.Row="0" Padding="10,8" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <DockPanel LastChildFill="True">
+
+                <!-- Logo — docked left -->
+                <Image DockPanel.Dock="Left"
+                       Source="Assets/sportitylogo1.png"
+                       Height="36" MaxWidth="180"
+                       Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       VerticalAlignment="Center"
+                       Margin="0,0,16,0" />
+
+                <!-- Right-side controls — docked right (order matters: dock before URL box) -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+
+                    <!-- Load button (hidden while loading) -->
+                    <Button Margin="10,0,0,0" Padding="18,7"
+                            Command="{Binding LoadCommand}"
+                            Visibility="{Binding IsLoading, Converter={StaticResource InvBoolToVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <icons:PackIconMaterial Kind="Download" Width="14" Height="14"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="Load" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Cancel button (shown while loading) -->
+                    <Button Margin="10,0,0,0" Padding="18,7"
+                            Command="{Binding CancelCommand}"
+                            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <icons:PackIconMaterial Kind="Close" Width="14" Height="14"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="Cancel" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Auto-download toggle -->
+                    <CheckBox Content="Auto-download" Margin="14,0,10,0"
+                              IsChecked="{Binding AutoDownload}" VerticalAlignment="Center"
+                              ToolTip="Automatically download all files when an event is loaded" />
+
+                    <!-- Settings button -->
+                    <Button Padding="10,7" ToolTip="Preferences (coming soon)" IsEnabled="False">
+                        <icons:PackIconMaterial Kind="Cog" Width="16" Height="16" />
+                    </Button>
+                </StackPanel>
+
+                <!-- URL ComboBox — LastChildFill=True makes this fill ALL remaining width -->
+                <ComboBox IsEditable="True"
+                          Text="{Binding UrlInput, UpdateSourceTrigger=PropertyChanged}"
+                          ItemsSource="{Binding RecentUrls}"
+                          IsEnabled="{Binding IsLoading, Converter={StaticResource InvBool}}"
+                          FontSize="14" MinWidth="300"
+                          VerticalAlignment="Center"
+                          Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                          ToolTip="Enter a Sportity channel or event URL">
+                    <ComboBox.Resources>
+                        <Style TargetType="TextBox">
+                            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                        </Style>
+                    </ComboBox.Resources>
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="1" Content="✕"
+                                        Tag="{Binding}"
+                                        Click="DeleteRecentUrl_Click"
+                                        Padding="6,2" Margin="8,0,0,0"
+                                        FontSize="11" VerticalAlignment="Center"
+                                        ToolTip="Remove from history" />
+                            </Grid>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                    <ComboBox.InputBindings>
+                        <KeyBinding Key="Return" Command="{Binding LoadCommand}" />
+                    </ComboBox.InputBindings>
+                </ComboBox>
+
+            </DockPanel>
+        </Border>
+
+        <!-- ═══ MAIN CONTENT ═══ -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" MinWidth="120" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="*" MinWidth="200" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="300" MinWidth="150" />
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: Channel event list -->
+            <DockPanel Grid.Column="0">
+                <TextBlock DockPanel.Dock="Top" Text="EVENTS" Margin="12,10,12,4"
+                           FontSize="11" Opacity="0.6" FontWeight="SemiBold"
+                           Visibility="{Binding HasChannelEvents, Converter={StaticResource BoolToVis}}" />
+                <ListBox ItemsSource="{Binding ChannelEvents}"
+                         SelectedItem="{Binding SelectedChannelEvent}"
+                         SelectionChanged="ChannelEventList_SelectionChanged"
+                         BorderThickness="0" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" Padding="4,6"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch"
+                          Background="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+
+            <!-- CENTER: Tree view -->
+            <DockPanel Grid.Column="2">
+                <!-- Search bar above tree -->
+                <Grid DockPanel.Dock="Top" Margin="8,8,8,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0"
+                             ui:ControlHelper.PlaceholderText="Filter items…"
+                             Text="{Binding CurrentEvent.FilterText, UpdateSourceTrigger=PropertyChanged}"
+                             IsEnabled="{Binding CurrentEvent, Converter={StaticResource BoolToVis}}" />
+                    <icons:PackIconMaterial Grid.Column="1" Kind="Magnify"
+                                           Width="16" Height="16" Margin="8,0,0,0"
+                                           VerticalAlignment="Center" Opacity="0.5" />
+                </Grid>
+
+                <!-- Loading spinner placeholder -->
+                <ui:ProgressRing DockPanel.Dock="Top" IsActive="{Binding IsLoading}"
+                                 Width="40" Height="40" Margin="0,40,0,0"
+                                 HorizontalAlignment="Center"
+                                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" />
+
+                <!-- Tree view -->
+                <TreeView x:Name="ContentTree"
+                          ItemsSource="{Binding CurrentEvent.DisplayedItems}"
+                          ItemTemplate="{StaticResource TreeTemplate}"
+                          BorderThickness="0"
+                          SelectedItemChanged="ContentTree_SelectedItemChanged"
+                          MouseDoubleClick="ContentTree_MouseDoubleClick"
+                          Visibility="{Binding IsLoading, Converter={StaticResource InvBoolToVis}}">
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            <Setter Property="Padding" Value="2,3" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                    <TreeView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Download file"
+                                      Command="{Binding PlacementTarget.Tag.ItemClickedCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                      CommandParameter="{Binding}" />
+                            <MenuItem Header="Download all in folder"
+                                      Command="{Binding PlacementTarget.Tag.DownloadFolderCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                      CommandParameter="{Binding}" />
+                            <Separator />
+                            <MenuItem Header="Copy URL"
+                                      Command="{Binding PlacementTarget.Tag.CopyUrlCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                      CommandParameter="{Binding}" />
+                            <MenuItem Header="Open containing folder"
+                                      Command="{Binding PlacementTarget.Tag.OpenContainingFolderCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                      CommandParameter="{Binding}" />
+                        </ContextMenu>
+                    </TreeView.ContextMenu>
+                </TreeView>
+
+                <!-- Empty state -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Visibility="{Binding IsLoading, Converter={StaticResource InvBoolToVis}}">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentEvent}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <icons:PackIconMaterial Kind="FlagCheckered" Width="48" Height="48"
+                                           HorizontalAlignment="Center" Opacity="0.2" />
+                    <TextBlock Text="Enter a Sportity URL and click Load"
+                               Margin="0,12,0,0" Opacity="0.4" HorizontalAlignment="Center" />
+                </StackPanel>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch"
+                          Background="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+
+            <!-- RIGHT: Detail / metadata / text panel -->
+            <DockPanel Grid.Column="4" Margin="12,8">
+                <TextBlock DockPanel.Dock="Top" Text="DETAILS" Margin="0,2,0,8"
+                           FontSize="11" Opacity="0.6" FontWeight="SemiBold" />
+
+                <!-- Metadata block -->
+                <Border DockPanel.Dock="Top" CornerRadius="6" Padding="12"
+                        Margin="0,0,0,12"
+                        Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                        Visibility="{Binding SelectedItem, Converter={StaticResource NotNullToVis}}">
+                    <TextBlock Text="{Binding DetailMetadata}" FontFamily="Consolas"
+                               FontSize="12" TextWrapping="Wrap" LineHeight="20" />
+                </Border>
+
+                <!-- Text content (for message items) -->
+                <Border CornerRadius="6" Padding="12"
+                        Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                        Visibility="{Binding DetailText, Converter={StaticResource StringNotEmptyToVis}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap"
+                                   LineHeight="22" FontSize="13" />
+                    </ScrollViewer>
+                </Border>
+            </DockPanel>
+        </Grid>
+
+        <!-- ═══ STATUS BAR ═══ -->
+        <Border Grid.Row="2" Padding="12,6" BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}"
+                           VerticalAlignment="Center" Opacity="0.7" FontSize="12"
+                           TextTrimming="CharacterEllipsis" />
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVis}}">
+                    <ProgressBar Value="{Binding DownloadProgress}" Maximum="100"
+                                 Width="180" Height="8" Margin="0,0,10,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

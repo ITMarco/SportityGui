@@ -3,6 +3,11 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# SportityGui runtime data files (never commit these)
+secrets.json
+state.json
+preferences.json
+
 # User-specific files
 *.rsuser
 *.suo
