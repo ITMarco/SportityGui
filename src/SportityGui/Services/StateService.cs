@@ -84,9 +84,12 @@ public class StateService
 
     private void ApplyTheme()
     {
-        var theme = Preferences.Theme == "Light"
-            ? ApplicationTheme.Light
-            : ApplicationTheme.Dark;
+        ApplicationTheme? theme = Preferences.Theme switch
+        {
+            "Dark" => ApplicationTheme.Dark,
+            "System" => null,
+            _ => ApplicationTheme.Light,
+        };
         ThemeManager.Current.ApplicationTheme = theme;
     }
 

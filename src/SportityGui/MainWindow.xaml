@@ -115,7 +115,7 @@
                               ToolTip="Automatically download all files when an event is loaded" />
 
                     <!-- Settings button -->
-                    <Button Padding="10,7" ToolTip="Preferences (coming soon)" IsEnabled="False">
+                    <Button Padding="10,7" ToolTip="Preferences" Click="Settings_Click">
                         <icons:PackIconMaterial Kind="Cog" Width="16" Height="16" />
                     </Button>
                 </StackPanel>

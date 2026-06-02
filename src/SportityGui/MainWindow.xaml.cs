@@ -2,7 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using Microsoft.Extensions.DependencyInjection;
 using SportityGui.Models;
+using SportityGui.Services;
 using SportityGui.ViewModels;
 
 namespace SportityGui;
@@ -64,5 +66,19 @@ public partial class MainWindow : Window
     {
         if (e.AddedItems.Count > 0 && e.AddedItems[0] is SportityEvent ev)
             Vm.LoadChannelEventCommand.Execute(ev);
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var stateService = App.Services.GetRequiredService<StateService>();
+        var vm = new PreferencesViewModel(stateService.Preferences);
+        var window = new PreferencesWindow(vm) { Owner = this };
+        if (window.ShowDialog() == true)
+        {
+            vm.ApplyTo(stateService.Preferences);
+            stateService.SavePreferences();
+            // Sync the toolbar AutoDownload checkbox with the updated preference
+            Vm.AutoDownload = stateService.Preferences.AutoDownload;
+        }
     }
 }
