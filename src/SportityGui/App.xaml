@@ -5,7 +5,28 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ui:ThemeResources />
+                <ui:ThemeResources>
+                    <ui:ThemeResources.ThemeDictionaries>
+                        <ResourceDictionary x:Key="Light">
+                            <SolidColorBrush x:Key="AppBackgroundBrush"        Color="#F5F4F0" />
+                            <SolidColorBrush x:Key="AppSidebarBackgroundBrush" Color="#EBEBEB" />
+                            <!-- Unfocused selection: muted steel blue instead of near-white -->
+                            <SolidColorBrush x:Key="SystemControlHighlightListLowBrush"    Color="#A8C8E8" />
+                            <SolidColorBrush x:Key="SystemControlHighlightListMediumBrush" Color="#8AB8DC" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="Dark">
+                            <SolidColorBrush x:Key="AppBackgroundBrush"        Color="#1E1E1E" />
+                            <SolidColorBrush x:Key="AppSidebarBackgroundBrush" Color="#252526" />
+                            <!-- Focused: dark amber so white text stays readable -->
+                            <SolidColorBrush x:Key="SystemControlHighlightListAccentLowBrush"    Color="#4A3A00" />
+                            <SolidColorBrush x:Key="SystemControlHighlightListAccentMediumBrush" Color="#5C4A00" />
+                            <SolidColorBrush x:Key="SystemControlHighlightListAccentHighBrush"   Color="#705900" />
+                            <!-- Unfocused: dark navy blue instead of near-white -->
+                            <SolidColorBrush x:Key="SystemControlHighlightListLowBrush"    Color="#1A3D6B" />
+                            <SolidColorBrush x:Key="SystemControlHighlightListMediumBrush" Color="#1E4880" />
+                        </ResourceDictionary>
+                    </ui:ThemeResources.ThemeDictionaries>
+                </ui:ThemeResources>
                 <ui:XamlControlsResources />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

@@ -56,6 +56,11 @@
 
         <CheckBox Content="Auto-download files when loading an event"
                   IsChecked="{Binding AutoDownload}"
+                  Margin="0,0,0,8" />
+
+        <CheckBox Content="Minimize to system tray only"
+                  IsChecked="{Binding MinimizeToTray}"
+                  ToolTip="When minimized, hide from the taskbar and show only in the system tray"
                   Margin="0,0,0,24" />
 
         <!-- ─── Background Refresh ─── -->

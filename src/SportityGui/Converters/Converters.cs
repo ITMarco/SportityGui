@@ -77,6 +77,16 @@ public class StringNotEmptyToVisibilityConverter : IValueConverter
         throw new NotSupportedException();
 }
 
+// Returns true if both bound values are equal (reference or value equality)
+public class ObjectEqualityMultiConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture) =>
+        values.Length == 2 && Equals(values[0], values[1]);
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 // Converts string == ConverterParameter to bool; used to bind RadioButtons to a string property
 [ValueConversion(typeof(string), typeof(bool))]
 public class StringEqualityConverter : IValueConverter

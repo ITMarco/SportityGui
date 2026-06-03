@@ -75,6 +75,24 @@ public partial class ScraperService(IHttpClientFactory httpClientFactory)
             });
         }
 
+        // Single-event channel: page has no /event/ links but contains file/folder content directly.
+        // Examples: channels that serve one event's documents at the channel URL itself.
+        if (events.Count == 0)
+        {
+            var directItems = ParseLevel(FindContentRoot(doc), doc, channelCode, string.Empty);
+            if (directItems.Count > 0)
+            {
+                events.Add(new SportityEvent
+                {
+                    Id = channelCode,
+                    Name = title,
+                    ChannelCode = channelCode,
+                    Url = url,
+                    Items = directItems
+                });
+            }
+        }
+
         return new SportityChannel { Code = channelCode, Name = title, Url = url, Events = events };
     }
 
@@ -100,12 +118,14 @@ public partial class ScraperService(IHttpClientFactory httpClientFactory)
 
     // ── Event page ───────────────────────────────────────────────────────────
 
-    public async Task<List<TreeItem>> ScrapeEventAsync(string url, CancellationToken ct = default)
+    public async Task<(List<TreeItem> Items, string PageTitle)> ScrapeEventAsync(string url, CancellationToken ct = default)
     {
         var html = await FetchHtmlAsync(url, ct);
         var doc = await ParseHtmlAsync(html, url, ct);
         var (channelCode, eventId) = ParseEventUrl(url);
-        return ParseLevel(FindContentRoot(doc), doc, channelCode, eventId);
+        var items = ParseLevel(FindContentRoot(doc), doc, channelCode, eventId);
+        var title = CleanText(doc.Title ?? string.Empty);
+        return (items, title);
     }
 
     // ── Text content ─────────────────────────────────────────────────────────
@@ -168,6 +188,7 @@ public partial class ScraperService(IHttpClientFactory httpClientFactory)
             }
             else if (anchor.Href.Contains("/event/text/", StringComparison.OrdinalIgnoreCase)
                      || (!href.StartsWith("#") && !href.StartsWith("mailto")
+                         && !string.IsNullOrEmpty(eventId)
                          && href.Contains(eventId, StringComparison.OrdinalIgnoreCase)))
             {
                 // ── Text / message item ──

@@ -44,6 +44,20 @@ public partial class EventViewModel : ObservableObject
         }
     }
 
+    // Force bottom-up re-evaluation of all badge states after any item interaction
+    public void RefreshAllBadges()
+    {
+        foreach (var vm in _allItems)
+            RefreshBadgeRecursive(vm);
+    }
+
+    private static void RefreshBadgeRecursive(TreeItemViewModel vm)
+    {
+        foreach (var child in vm.Children)
+            RefreshBadgeRecursive(child);
+        vm.RefreshBadge();
+    }
+
     private static bool MatchesFilter(TreeItemViewModel vm, string filter)
     {
         if (vm.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))

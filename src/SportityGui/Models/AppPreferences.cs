@@ -6,6 +6,7 @@ public class AppPreferences
     public string DownloadFolder { get; set; } = DefaultDownloadFolder;
     public int AutoRefreshMinutes { get; set; } = 0;
     public string Theme { get; set; } = "Light";
+    public bool MinimizeToTray { get; set; } = false;
 
     public static string DefaultDownloadFolder =>
         System.IO.Path.Combine(

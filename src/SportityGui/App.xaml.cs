@@ -24,11 +24,22 @@ public partial class App : Application
         {
             DataContext = Services.GetRequiredService<MainViewModel>()
         };
-        window.Show();
+        MainWindow = window;
+
+        bool startMinimized = e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
+        if (startMinimized)
+        {
+            Services.GetRequiredService<TrayService>().ShowTrayIcon();
+        }
+        else
+        {
+            window.Show();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        Services.GetRequiredService<TrayService>().Dispose();
         Services.GetRequiredService<StateService>().Save();
         base.OnExit(e);
     }
@@ -45,6 +56,7 @@ public partial class App : Application
         services.AddSingleton<StateService>();
         services.AddSingleton<ScraperService>();
         services.AddSingleton<DownloadService>();
+        services.AddSingleton<TrayService>();
         services.AddTransient<MainViewModel>();
     }
 }
