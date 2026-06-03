@@ -3,7 +3,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Microsoft.Extensions.DependencyInjection;
-using SportityGui.Models;
 using SportityGui.Services;
 using SportityGui.ViewModels;
 
@@ -17,16 +16,38 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Set window taskbar icon from the embedded PNG
         try
         {
             Icon = new BitmapImage(new Uri("pack://application:,,,/Assets/sportitylogo1.png"));
         }
-        catch { /* icon is cosmetic, continue without it */ }
+        catch { }
 
-        // Give tree view access to DataContext for context menu commands
         ContentTree.Tag = DataContext;
         DataContextChanged += (_, _) => ContentTree.Tag = DataContext;
+    }
+
+    // M8-8: Restore saved channels once the window is first rendered
+    protected override async void OnContentRendered(EventArgs e)
+    {
+        base.OnContentRendered(e);
+
+        // Prompt for download folder if not set (first run or user cleared it)
+        var stateService = App.Services.GetRequiredService<StateService>();
+        if (string.IsNullOrWhiteSpace(stateService.Preferences.DownloadFolder))
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Choose a folder where SportityGui will save downloaded files",
+                Multiselect = false
+            };
+            stateService.Preferences.DownloadFolder =
+                dialog.ShowDialog(this) == true && !string.IsNullOrEmpty(dialog.FolderName)
+                    ? dialog.FolderName
+                    : Models.AppPreferences.DefaultDownloadFolder;
+            stateService.SavePreferences();
+        }
+
+        await Vm.RestoreChannelsAsync();
     }
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -46,11 +67,18 @@ public partial class MainWindow : Window
 
     private void ContentTree_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (ContentTree.SelectedItem is TreeItemViewModel vm)
+        if (ContentTree.SelectedItem is not TreeItemViewModel vm) return;
+
+        if (vm.IsFile)
         {
             Vm.ItemDoubleClickedCommand.Execute(vm);
-            e.Handled = true;
         }
+        else if (vm.IsFolder)
+        {
+            vm.IsExpanded = !vm.IsExpanded;
+        }
+
+        e.Handled = true;
     }
 
     private void DeleteRecentUrl_Click(object sender, RoutedEventArgs e)
@@ -58,14 +86,47 @@ public partial class MainWindow : Window
         if (sender is Button btn && btn.Tag is string url)
         {
             Vm.RemoveRecentUrlCommand.Execute(url);
-            e.Handled = true; // prevent ComboBox from selecting the item
+            e.Handled = true;
         }
     }
 
-    private void ChannelEventList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    // M8-6: Remove channel button (click on ✕ in channel header)
+    private void RemoveChannel_Click(object sender, RoutedEventArgs e)
     {
-        if (e.AddedItems.Count > 0 && e.AddedItems[0] is SportityEvent ev)
-            Vm.LoadChannelEventCommand.Execute(ev);
+        if (sender is not FrameworkElement el) return;
+        // Walk up to find the ChannelSectionViewModel DataContext
+        var section = FindChannelSection(el);
+        if (section == null) return;
+
+        var dlg = new RemoveChannelDialog(section.Name) { Owner = this };
+        if (dlg.ShowDialog() == true)
+            Vm.RemoveChannel(section, dlg.DeleteFiles);
+    }
+
+    private static ChannelSectionViewModel? FindChannelSection(DependencyObject element)
+    {
+        var current = element;
+        while (current != null)
+        {
+            if (current is FrameworkElement fe && fe.DataContext is ChannelSectionViewModel csv)
+                return csv;
+            current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+        }
+        return null;
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        if (WindowState == WindowState.Minimized)
+        {
+            var prefs = App.Services.GetRequiredService<StateService>().Preferences;
+            if (prefs.MinimizeToTray)
+            {
+                Hide();
+                App.Services.GetRequiredService<TrayService>().ShowTrayIcon();
+            }
+        }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
@@ -77,8 +138,8 @@ public partial class MainWindow : Window
         {
             vm.ApplyTo(stateService.Preferences);
             stateService.SavePreferences();
-            // Sync the toolbar AutoDownload checkbox with the updated preference
             Vm.AutoDownload = stateService.Preferences.AutoDownload;
+            Vm.AutoRefreshMinutes = stateService.Preferences.AutoRefreshMinutes;
         }
     }
 }

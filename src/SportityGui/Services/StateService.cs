@@ -72,6 +72,22 @@ public class StateService
     public DownloadRecord? GetDownloadRecord(string id) =>
         State.DownloadedFiles.TryGetValue(id, out var r) ? r : null;
 
+    public void DeleteChannelFiles(string channelFolderPath)
+    {
+        var prefix = channelFolderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                     + Path.DirectorySeparatorChar;
+        var toRemove = State.DownloadedFiles
+            .Where(kvp => kvp.Value.LocalPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Key)
+            .ToList();
+        foreach (var key in toRemove)
+        {
+            try { File.Delete(State.DownloadedFiles[key].LocalPath); } catch { }
+            State.DownloadedFiles.Remove(key);
+        }
+        Save();
+    }
+
     public void RecordDownload(string id, string localPath)
     {
         State.DownloadedFiles[id] = new DownloadRecord

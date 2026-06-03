@@ -6,6 +6,7 @@ public class AppState
     public Dictionary<string, DateTime> ReadItems { get; set; } = [];
     public Dictionary<string, DateTime> FirstSeenItems { get; set; } = [];
     public Dictionary<string, DownloadRecord> DownloadedFiles { get; set; } = [];
+    public List<SavedChannel> Channels { get; set; } = [];
 }
 
 public class DownloadRecord
