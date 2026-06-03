@@ -50,13 +50,9 @@ public partial class TreeItemViewModel : ObservableObject
     }
 
     private bool ComputeBadge() =>
-<<<<<<< HEAD
         IsFolder
             ? Children.Any(c => c.ShowUnreadBadge)
             : (!IsRead && !IsDownloaded);
-=======
-        (!_isRead && !_isDownloaded) || (IsFolder && Children.Any(c => c.ShowUnreadBadge));
->>>>>>> 6cc37c9b97741a60ddd0024f58bc43ff7a248b93
 
     // Called whenever read/download state changes, and propagated up through Parent chain
     private void UpdateBadge()
