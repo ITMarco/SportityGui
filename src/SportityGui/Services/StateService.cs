@@ -88,6 +88,37 @@ public class StateService
         Save();
     }
 
+    public void RemoveEventFiles(string eventFolderPath)
+    {
+        var prefix = eventFolderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                     + Path.DirectorySeparatorChar;
+        var toRemove = State.DownloadedFiles
+            .Where(kvp => kvp.Value.LocalPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Key)
+            .ToList();
+        foreach (var key in toRemove)
+        {
+            try { File.Delete(State.DownloadedFiles[key].LocalPath); } catch { }
+            State.DownloadedFiles.Remove(key);
+        }
+        Save();
+    }
+
+    public void MarkReadBatch(IEnumerable<string> ids)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var id in ids)
+            State.ReadItems.TryAdd(id, now);
+        Save();
+    }
+
+    public void MarkUnreadBatch(IEnumerable<string> ids)
+    {
+        foreach (var id in ids)
+            State.ReadItems.Remove(id);
+        Save();
+    }
+
     public void RecordDownload(string id, string localPath)
     {
         State.DownloadedFiles[id] = new DownloadRecord

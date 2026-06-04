@@ -336,13 +336,34 @@
                                                     <Border x:Name="EvBorder"
                                                             Padding="28,5,8,5"
                                                             Cursor="Hand"
-                                                            Background="Transparent">
+                                                            Background="Transparent"
+                                                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
                                                         <Border.InputBindings>
                                                             <MouseBinding MouseAction="LeftClick"
                                                                          Command="{Binding DataContext.LoadChannelEventCommand,
                                                                                            RelativeSource={RelativeSource AncestorType=Window}}"
                                                                          CommandParameter="{Binding}" />
                                                         </Border.InputBindings>
+                                                        <Border.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="Mark all as read"
+                                                                          Command="{Binding PlacementTarget.Tag.EventMarkAllReadCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <MenuItem Header="Download all documents"
+                                                                          Command="{Binding PlacementTarget.Tag.EventDownloadAllCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Remove all documents"
+                                                                          Command="{Binding PlacementTarget.Tag.EventRemoveAllCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                            </ContextMenu>
+                                                        </Border.ContextMenu>
                                                         <TextBlock Text="{Binding Name}"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    FontSize="12"

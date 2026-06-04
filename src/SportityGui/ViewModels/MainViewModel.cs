@@ -658,6 +658,66 @@ public partial class MainViewModel : ObservableObject
         finally { ShowProgress = false; }
     }
 
+    // ── Event context menu (sidebar right-click) ─────────────────────────────
+
+    private async Task EnsureEventLoadedAsync(SportityEvent ev)
+    {
+        if (CurrentEvent?.Event.Url == ev.Url) return;
+        await LoadChannelEventAsync(ev);
+    }
+
+    [RelayCommand]
+    private async Task EventMarkAllReadAsync(SportityEvent ev)
+    {
+        if (ev == null) return;
+        try
+        {
+            await EnsureEventLoadedAsync(ev);
+            CurrentEvent?.MarkAllRead();
+            StatusMessage = "All items marked as read.";
+        }
+        catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private async Task EventDownloadAllAsync(SportityEvent ev)
+    {
+        if (ev == null) return;
+        var ct = (_cts = new CancellationTokenSource()).Token;
+        ShowProgress = true;
+        StatusMessage = $"Downloading all documents for '{ev.Name}'…";
+        try
+        {
+            await EnsureEventLoadedAsync(ev);
+            if (CurrentEvent != null)
+            {
+                await AutoDownloadAllAsync(CurrentEvent.DisplayedItems, ct);
+                CurrentEvent.RefreshAllBadges();
+            }
+            StatusMessage = "All documents downloaded.";
+        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = $"Download error: {ex.Message}"; }
+        finally { ShowProgress = false; }
+    }
+
+    [RelayCommand]
+    private async Task EventRemoveAllAsync(SportityEvent ev)
+    {
+        if (ev == null) return;
+        try
+        {
+            await EnsureEventLoadedAsync(ev);
+            if (CurrentEvent == null) return;
+
+            _state.RemoveEventFiles(GetEventDownloadFolder());
+            CurrentEvent.MarkAllUnread();
+            OnPropertyChanged(nameof(SelectedItemIsDownloaded));
+            StatusMessage = "All documents removed and items reset to unread.";
+        }
+        catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
+    }
+
     // ── Context menu actions ─────────────────────────────────────────────────
 
     [RelayCommand]

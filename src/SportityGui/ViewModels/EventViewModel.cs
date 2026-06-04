@@ -44,6 +44,46 @@ public partial class EventViewModel : ObservableObject
         }
     }
 
+    public void MarkAllRead()
+    {
+        var ids = new List<string>();
+        CollectNonFolderIds(_allItems, ids);
+        _state.MarkReadBatch(ids);
+        SetReadRecursive(_allItems, read: true);
+        RefreshAllBadges();
+    }
+
+    public void MarkAllUnread()
+    {
+        var ids = new List<string>();
+        CollectNonFolderIds(_allItems, ids);
+        _state.MarkUnreadBatch(ids);
+        SetReadRecursive(_allItems, read: false);
+        RefreshAllBadges();
+    }
+
+    private static void CollectNonFolderIds(IEnumerable<TreeItemViewModel> items, List<string> ids)
+    {
+        foreach (var vm in items)
+        {
+            if (!vm.IsFolder) ids.Add(vm.Model.Id);
+            CollectNonFolderIds(vm.Children, ids);
+        }
+    }
+
+    private static void SetReadRecursive(IEnumerable<TreeItemViewModel> items, bool read)
+    {
+        foreach (var vm in items)
+        {
+            if (!vm.IsFolder)
+            {
+                vm.IsRead = read;
+                if (!read) { vm.IsDownloaded = false; vm.LocalPath = null; }
+            }
+            SetReadRecursive(vm.Children, read);
+        }
+    }
+
     // Force bottom-up re-evaluation of all badge states after any item interaction
     public void RefreshAllBadges()
     {
