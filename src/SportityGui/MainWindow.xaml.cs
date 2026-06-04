@@ -18,7 +18,7 @@ public partial class MainWindow : Window
 
         try
         {
-            Icon = new BitmapImage(new Uri("pack://application:,,,/Assets/sportitylogo1.png"));
+            Icon = new BitmapImage(new Uri("pack://application:,,,/Assets/Sportity.ico"));
         }
         catch { }
 

@@ -10,10 +10,14 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>SportityGui</AssemblyName>
     <RootNamespace>SportityGui</RootNamespace>
+    <ApplicationIcon>Assets\Sportity.ico</ApplicationIcon>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>    
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\sportitylogo1.png" />
+    <Resource Include="Assets\Sportity.ico" />
   </ItemGroup>
 
   <ItemGroup>

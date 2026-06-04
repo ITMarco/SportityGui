@@ -169,6 +169,13 @@
                     </Button>
                 </StackPanel>
 
+                <!-- URL label -->
+                <TextBlock DockPanel.Dock="Left"
+                           Text="Channel or event URL"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"
+                           Opacity="0.7" FontSize="13" />
+
                 <!-- URL ComboBox -->
                 <ComboBox IsEditable="True"
                           Text="{Binding UrlInput, UpdateSourceTrigger=PropertyChanged}"
