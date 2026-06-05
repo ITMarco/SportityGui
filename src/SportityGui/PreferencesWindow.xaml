@@ -61,6 +61,10 @@
         <CheckBox Content="Minimize to system tray only"
                   IsChecked="{Binding MinimizeToTray}"
                   ToolTip="When minimized, hide from the taskbar and show only in the system tray"
+                  Margin="0,0,0,8" />
+        <CheckBox Content="Start minimized to tray on launch"
+                  IsChecked="{Binding StartMinimizedToTray}"
+                  ToolTip="On startup, hide the window and show only the tray icon"
                   Margin="0,0,0,24" />
 
         <!-- ─── Background Refresh ─── -->
@@ -77,12 +81,16 @@
         <Separator Margin="0,0,0,16" />
 
         <!-- ─── Dialog buttons ─── -->
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Cancel" IsCancel="True" Padding="20,7" Margin="0,0,10,0" />
-            <Button Content="OK" IsDefault="True" Padding="20,7"
-                    Click="Ok_Click"
-                    Style="{DynamicResource AccentButtonStyle}" />
-        </StackPanel>
+        <DockPanel>
+            <Button DockPanel.Dock="Left" Content="About…"
+                    Padding="16,7" Click="About_Click" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" IsCancel="True" Padding="20,7" Margin="0,0,10,0" />
+                <Button Content="OK" IsDefault="True" Padding="20,7"
+                        Click="Ok_Click"
+                        Style="{DynamicResource AccentButtonStyle}" />
+            </StackPanel>
+        </DockPanel>
 
     </StackPanel>
 </Window>

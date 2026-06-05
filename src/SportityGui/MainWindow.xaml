@@ -67,6 +67,12 @@
                         </TextBlock.RenderTransform>
                     </TextBlock>
                 </Canvas>
+                <!-- Orange pill: appears only for items discovered during background refresh -->
+                <Border CornerRadius="3" Background="#E05C00" Padding="4,1"
+                        Margin="4,0,0,0" VerticalAlignment="Center"
+                        Visibility="{Binding IsNew, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="NEW" FontSize="9" FontWeight="Bold" Foreground="White" />
+                </Border>
             </StackPanel>
             <HierarchicalDataTemplate.Triggers>
                 <DataTrigger Binding="{Binding Type}" Value="File">
@@ -171,7 +177,7 @@
 
                 <!-- URL label -->
                 <TextBlock DockPanel.Dock="Left"
-                           Text="Channel or event URL"
+                           Text="Channel / Event URL or Shortcode"
                            VerticalAlignment="Center"
                            Margin="0,0,10,0"
                            Opacity="0.7" FontSize="13" />
@@ -440,7 +446,7 @@
                           ItemTemplate="{StaticResource TreeTemplate}"
                           BorderThickness="0"
                           SelectedItemChanged="ContentTree_SelectedItemChanged"
-                          MouseDoubleClick="ContentTree_MouseDoubleClick"
+                          PreviewMouseLeftButtonDown="ContentTree_PreviewMouseLeftButtonDown"
                           Visibility="{Binding IsLoading, Converter={StaticResource InvBoolToVis}}">
                     <TreeView.ItemContainerStyle>
                         <Style TargetType="TreeViewItem">
@@ -451,6 +457,10 @@
                     </TreeView.ItemContainerStyle>
                     <TreeView.ContextMenu>
                         <ContextMenu>
+                            <MenuItem Header="Refresh event"
+                                      Command="{Binding PlacementTarget.Tag.RefreshCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                            <Separator />
                             <MenuItem Header="Download file"
                                       Command="{Binding PlacementTarget.Tag.DownloadSelectedCommand,
                                                 RelativeSource={RelativeSource AncestorType=ContextMenu}}" />

@@ -65,20 +65,34 @@ public partial class MainWindow : Window
             Vm.ItemClickedCommand.Execute(vm);
     }
 
-    private void ContentTree_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private void ContentTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (ContentTree.SelectedItem is not TreeItemViewModel vm) return;
+        if (e.ClickCount < 2) return;
 
-        if (vm.IsFile)
+        var tvi = FindAncestor<TreeViewItem>(e.OriginalSource as DependencyObject);
+        if (tvi?.DataContext is not TreeItemViewModel vm) return;
+
+        if (vm.IsFolder)
+        {
+            tvi.IsExpanded = !tvi.IsExpanded;
+            vm.IsExpanded = tvi.IsExpanded;
+            e.Handled = true;
+        }
+        else if (vm.IsFile)
         {
             Vm.ItemDoubleClickedCommand.Execute(vm);
+            e.Handled = true;
         }
-        else if (vm.IsFolder)
-        {
-            vm.IsExpanded = !vm.IsExpanded;
-        }
+    }
 
-        e.Handled = true;
+    private static T? FindAncestor<T>(DependencyObject? element) where T : DependencyObject
+    {
+        while (element != null)
+        {
+            if (element is T t) return t;
+            element = System.Windows.Media.VisualTreeHelper.GetParent(element);
+        }
+        return null;
     }
 
     private void DeleteRecentUrl_Click(object sender, RoutedEventArgs e)

@@ -49,6 +49,10 @@ public class StateService
         Save();
     }
 
+    public bool IsNew(string id)    => State.NewItems.Contains(id);
+    public void MarkNew(string id)  { State.NewItems.Add(id); }
+    public void ClearNew(string id) { State.NewItems.Remove(id); Save(); }
+
     public bool IsRead(string id) => State.ReadItems.ContainsKey(id);
 
     public void MarkRead(string id)

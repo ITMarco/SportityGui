@@ -15,4 +15,9 @@ public partial class PreferencesWindow : Window
     {
         DialogResult = true;
     }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        new AboutWindow { Owner = this }.ShowDialog();
+    }
 }

@@ -16,6 +16,7 @@ public partial class TreeItemViewModel : ObservableObject
     [ObservableProperty] private bool _isExpanded;
     [ObservableProperty] private bool _isRead;
     [ObservableProperty] private bool _isDownloaded;
+    [ObservableProperty] private bool _isNew;
     [ObservableProperty] private bool _showUnreadBadge;   // settable, not computed
     [ObservableProperty] private string? _localPath;
 
@@ -35,6 +36,7 @@ public partial class TreeItemViewModel : ObservableObject
 
         _isRead = state.IsRead(model.Id);
         _isDownloaded = model is FileItem && state.IsDownloaded(model.Id);
+        _isNew = state.IsNew(model.Id);
         _localPath = (model is FileItem) ? state.GetDownloadRecord(model.Id)?.LocalPath : null;
 
         state.RecordFirstSeen(model.Id);
@@ -70,10 +72,18 @@ public partial class TreeItemViewModel : ObservableObject
         }
     }
 
+    public void NotifyNew()
+    {
+        _state.MarkNew(Model.Id);
+        IsNew = true;
+    }
+
     public void MarkRead()
     {
         _state.MarkRead(Model.Id);
+        _state.ClearNew(Model.Id);
         IsRead = true;
+        IsNew = false;
         UpdateBadge();
         NotifyParentChain();
     }

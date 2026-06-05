@@ -12,6 +12,7 @@ public partial class PreferencesViewModel : ObservableObject
     [ObservableProperty] private bool _autoDownload;
     [ObservableProperty] private int _autoRefreshMinutes;
     [ObservableProperty] private bool _minimizeToTray;
+    [ObservableProperty] private bool _startMinimizedToTray;
 
     public PreferencesViewModel(AppPreferences prefs)
     {
@@ -20,6 +21,7 @@ public partial class PreferencesViewModel : ObservableObject
         _autoDownload = prefs.AutoDownload;
         _autoRefreshMinutes = prefs.AutoRefreshMinutes;
         _minimizeToTray = prefs.MinimizeToTray;
+        _startMinimizedToTray = prefs.StartMinimizedToTray;
     }
 
     [RelayCommand]
@@ -47,5 +49,6 @@ public partial class PreferencesViewModel : ObservableObject
         prefs.AutoDownload = AutoDownload;
         prefs.AutoRefreshMinutes = AutoRefreshMinutes;
         prefs.MinimizeToTray = MinimizeToTray;
+        prefs.StartMinimizedToTray = StartMinimizedToTray;
     }
 }

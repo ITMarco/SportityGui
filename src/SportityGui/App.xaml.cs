@@ -26,7 +26,8 @@ public partial class App : Application
         };
         MainWindow = window;
 
-        bool startMinimized = e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
+        bool startMinimized = stateService.Preferences.StartMinimizedToTray
+                           || e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
         if (startMinimized)
         {
             Services.GetRequiredService<TrayService>().ShowTrayIcon();

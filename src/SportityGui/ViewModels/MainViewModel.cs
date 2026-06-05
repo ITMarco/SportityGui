@@ -323,7 +323,7 @@ public partial class MainViewModel : ObservableObject
         string channelCode, string eventId, string? knownName = null)
     {
         var (items, pageTitle) = await _scraper.ScrapeEventAsync(url, ct);
-        var (newNames, hadExisting) = FindNewItems(items);
+        var (newNames, newIds, hadExisting) = FindNewItems(items);
 
         // Prefer known sidebar name → page title → event id (UUID fallback)
         var displayName = !string.IsNullOrEmpty(knownName) ? knownName
@@ -333,11 +333,13 @@ public partial class MainViewModel : ObservableObject
         var ev = new SportityEvent { Id = eventId, Name = displayName, ChannelCode = channelCode, Url = url, Items = items };
         CurrentEvent = new EventViewModel(ev, _state);
 
-        if (hadExisting && newNames.Count > 0)
+        if (hadExisting && newIds.Count > 0)
         {
+            ApplyNewBadges(CurrentEvent.DisplayedItems, newIds);
+            CurrentEvent.RefreshAllBadges();
             var msg = newNames.Count == 1
-                ? $"New file '{newNames[0]}' was added for event {eventId}"
-                : $"New file '{newNames[0]}' and {newNames.Count - 1} more were added for event {eventId}";
+                ? $"New file '{newNames[0]}' was added for event {displayName}"
+                : $"New file '{newNames[0]}' and {newNames.Count - 1} more were added for event {displayName}";
             _tray.ShowNotification("SportityGui", msg);
         }
 
@@ -855,24 +857,39 @@ public partial class MainViewModel : ObservableObject
             RecentUrls.Add(url);
     }
 
-    private (List<string> Names, bool HadExisting) FindNewItems(IEnumerable<TreeItem> items)
+    private (List<string> Names, HashSet<string> NewIds, bool HadExisting) FindNewItems(IEnumerable<TreeItem> items)
     {
-        var names = new List<string>();
+        var names  = new List<string>();
+        var newIds = new HashSet<string>();
         bool hadExisting = false;
-        ScanItems(items, names, ref hadExisting);
-        return (names, hadExisting);
+        ScanItems(items, names, newIds, ref hadExisting);
+        return (names, newIds, hadExisting);
     }
 
-    private void ScanItems(IEnumerable<TreeItem> items, List<string> newNames, ref bool hadExisting)
+    private void ScanItems(IEnumerable<TreeItem> items, List<string> newNames, HashSet<string> newIds, ref bool hadExisting)
     {
         foreach (var item in items)
         {
             if (item is FolderItem folder)
-                ScanItems(folder.Children, newNames, ref hadExisting);
+                ScanItems(folder.Children, newNames, newIds, ref hadExisting);
             else if (_state.GetFirstSeen(item.Id) == null)
+            {
                 newNames.Add(item.Name);
+                newIds.Add(item.Id);
+            }
             else
                 hadExisting = true;
+        }
+    }
+
+    private static void ApplyNewBadges(IEnumerable<TreeItemViewModel> vms, HashSet<string> newIds)
+    {
+        foreach (var vm in vms)
+        {
+            if (newIds.Contains(vm.Model.Id))
+                vm.NotifyNew();
+            if (vm.Children.Count > 0)
+                ApplyNewBadges(vm.Children, newIds);
         }
     }
 }

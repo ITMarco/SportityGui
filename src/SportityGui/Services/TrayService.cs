@@ -49,6 +49,14 @@ public sealed class TrayService : IDisposable
     {
         try
         {
+            // Prefer the real .ico file
+            var icoUri = new Uri("pack://application:,,,/Assets/Sportity.ico");
+            var icoRes = System.Windows.Application.GetResourceStream(icoUri);
+            if (icoRes != null) return new System.Drawing.Icon(icoRes.Stream);
+        }
+        catch { }
+        try
+        {
             var uri = new Uri("pack://application:,,,/Assets/sportitylogo1.png");
             var resource = System.Windows.Application.GetResourceStream(uri);
             if (resource != null)
