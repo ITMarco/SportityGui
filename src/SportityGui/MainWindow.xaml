@@ -140,7 +140,7 @@
                         <StackPanel Orientation="Horizontal">
                             <icons:PackIconMaterial Kind="Refresh" Width="14" Height="14"
                                                    VerticalAlignment="Center" Margin="0,0,6,0" />
-                            <TextBlock Text="Refresh" FontSize="13" />
+                            <TextBlock Text="Refresh all" FontSize="13" />
                         </StackPanel>
                     </Button>
 
@@ -473,8 +473,8 @@
                     </TreeView.ItemContainerStyle>
                     <TreeView.ContextMenu>
                         <ContextMenu>
-                            <MenuItem Header="Refresh event"
-                                      Command="{Binding PlacementTarget.Tag.RefreshCommand,
+                            <MenuItem Header="Update now"
+                                      Command="{Binding PlacementTarget.Tag.RefreshCurrentEventCommand,
                                                 RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                             <Separator />
                             <MenuItem Header="Download file"

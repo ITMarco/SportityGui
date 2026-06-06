@@ -361,35 +361,57 @@ public partial class MainViewModel : ObservableObject
         StatusMessage = "Cancelling…";
     }
 
-    // ── Refresh (M8-7) ──────────────────────────────────────────────────────
+    // ── Refresh ─────────────────────────────────────────────────────────────
+
+    [RelayCommand]
+    private async Task RefreshCurrentEventAsync()
+    {
+        if (CurrentEvent == null) return;
+        var url = CurrentEvent.Event.Url;
+        var ct = (_cts = new CancellationTokenSource()).Token;
+        IsLoading = true;
+        StatusMessage = "Refreshing event…";
+        try
+        {
+            var (channelCode, eventId) = ScraperService.ParseEventUrl(url);
+            var currentName = CurrentEvent.Event.Name;
+            await LoadEventInCenterAsync(url, ct, channelCode, eventId, currentName);
+            StatusMessage = $"Refreshed — {CurrentEvent?.DisplayedItems.Count ?? 0} item(s).";
+        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
+        finally { IsLoading = false; ShowProgress = false; }
+    }
 
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        if (CurrentEvent != null && _activeSection != null)
+        var ct = (_cts = new CancellationTokenSource()).Token;
+        IsLoading = true;
+        StatusMessage = "Refreshing all…";
+        try
         {
-            // Refresh just the active event
-            var url = CurrentEvent.Event.Url;
-            var ct = (_cts = new CancellationTokenSource()).Token;
-            IsLoading = true;
-            StatusMessage = "Refreshing event…";
-            try
+            // Refresh the currently open event (if any) and all sidebar channels in parallel
+            var tasks = new List<Task>();
+
+            if (CurrentEvent != null)
             {
+                var url = CurrentEvent.Event.Url;
                 var (channelCode, eventId) = ScraperService.ParseEventUrl(url);
-                var currentName = CurrentEvent?.Event.Name;
-                await LoadEventInCenterAsync(url, ct, channelCode, eventId, currentName);
-                if (_activeSection.Type == SavedChannelType.Channel)
-                    await RefreshSectionAsync(_activeSection, ct);
-                StatusMessage = $"Refreshed — {CurrentEvent?.DisplayedItems.Count ?? 0} item(s).";
+                var currentName = CurrentEvent.Event.Name;
+                tasks.Add(LoadEventInCenterAsync(url, ct, channelCode, eventId, currentName));
             }
-            catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
-            catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
-            finally { IsLoading = false; ShowProgress = false; }
+
+            tasks.AddRange(Channels.ToList().Select(s => RefreshSectionAsync(s, ct)));
+
+            await Task.WhenAll(tasks);
+            StatusMessage = CurrentEvent != null
+                ? $"Refreshed — {CurrentEvent.DisplayedItems.Count} item(s)."
+                : "All channels refreshed.";
         }
-        else
-        {
-            await RefreshAllChannelsAsync();
-        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
+        finally { IsLoading = false; ShowProgress = false; }
     }
 
     public async Task RefreshAllChannelsAsync()
