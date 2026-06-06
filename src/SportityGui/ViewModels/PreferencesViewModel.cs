@@ -66,27 +66,66 @@ public partial class PreferencesViewModel : ObservableObject
         {
             var (hasUpdate, remoteVersion, error) = await _updater.CheckAsync();
 
-            string msg;
-            System.Windows.MessageBoxImage icon;
-
             if (error != null)
             {
-                msg = $"Could not reach the update server.\n\nDetails: {error}";
-                icon = System.Windows.MessageBoxImage.Warning;
-            }
-            else if (hasUpdate)
-            {
-                msg = $"Version {remoteVersion} is available!\nYou are running {AppInfo.Version}.";
-                icon = System.Windows.MessageBoxImage.Information;
-            }
-            else
-            {
-                msg = $"You are up to date.\nRunning {AppInfo.Version}, latest is {remoteVersion}.";
-                icon = System.Windows.MessageBoxImage.Information;
+                System.Windows.MessageBox.Show(
+                    $"Could not reach the update server.\n\nDetails: {error}",
+                    "SportityGui Update Check",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
             }
 
-            System.Windows.MessageBox.Show(msg, "SportityGui Update Check",
-                System.Windows.MessageBoxButton.OK, icon);
+            if (!hasUpdate)
+            {
+                System.Windows.MessageBox.Show(
+                    $"You are up to date.\nRunning {AppInfo.Version}, latest is {remoteVersion}.",
+                    "SportityGui Update Check",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+                return;
+            }
+
+            // Update available — offer to download immediately
+            var answer = System.Windows.MessageBox.Show(
+                $"Version {remoteVersion} is available (you have {AppInfo.Version}).\n\nDownload now?",
+                "SportityGui Update Available",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Information);
+
+            if (answer != System.Windows.MessageBoxResult.Yes) return;
+
+            try
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(
+                    () => System.Windows.Application.Current.MainWindow.Cursor =
+                          System.Windows.Input.Cursors.Wait);
+
+                var path = await _updater.DownloadUpdateAsync(remoteVersion);
+
+                System.Windows.Application.Current.Dispatcher.Invoke(
+                    () => System.Windows.Application.Current.MainWindow.Cursor = null);
+
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
+                    { UseShellExecute = true });
+
+                System.Windows.MessageBox.Show(
+                    $"Download complete!\n{path}",
+                    "SportityGui",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(
+                    () => System.Windows.Application.Current.MainWindow.Cursor = null);
+                System.Windows.MessageBox.Show(
+                    $"Download failed: {ex.Message}",
+                    "SportityGui",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
         }
         catch (Exception ex)
         {

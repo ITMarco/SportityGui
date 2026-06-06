@@ -52,8 +52,8 @@
                    LineHeight="18" Margin="0,0,0,20">
             This software is not affiliated with or endorsed by Sportity.
             No copyright infringement is intended. All Sportity content belongs
-            to its respective owners. SportityGui is released to the Public Domain
-            under the Unlicense.
+            to its respective owners. SportityGui is released under the
+            GNU General Public License v3.0 (GPL-3.0).
         </TextBlock>
 
         <!-- Close button -->
