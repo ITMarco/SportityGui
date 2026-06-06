@@ -41,6 +41,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Services.GetRequiredService<TrayService>().Dispose();
+        Services.GetRequiredService<DownloadService>().Dispose();
         Services.GetRequiredService<StateService>().Save();
         base.OnExit(e);
     }
@@ -58,6 +59,7 @@ public partial class App : Application
         services.AddSingleton<ScraperService>();
         services.AddSingleton<DownloadService>();
         services.AddSingleton<TrayService>();
+        services.AddSingleton<UpdateService>();
         services.AddTransient<MainViewModel>();
     }
 }

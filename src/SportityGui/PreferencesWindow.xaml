@@ -65,7 +65,17 @@
         <CheckBox Content="Start minimized to tray on launch"
                   IsChecked="{Binding StartMinimizedToTray}"
                   ToolTip="On startup, hide the window and show only the tray icon"
-                  Margin="0,0,0,24" />
+                  Margin="0,0,0,16" />
+
+        <!-- ─── Updates ─── -->
+        <TextBlock Text="UPDATES" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,0,0,10" />
+        <CheckBox Content="Check for updates at program start"
+                  IsChecked="{Binding CheckForUpdatesAtStartup}"
+                  Margin="0,0,0,8" />
+        <Button Content="Check for updates now"
+                Command="{Binding CheckForUpdatesNowCommand}"
+                HorizontalAlignment="Left"
+                Margin="0,0,0,24" />
 
         <!-- ─── Background Refresh ─── -->
         <TextBlock Text="BACKGROUND REFRESH" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,0,0,10" />

@@ -8,6 +8,7 @@ public class AppPreferences
     public string Theme { get; set; } = "Light";
     public bool MinimizeToTray { get; set; } = false;
     public bool StartMinimizedToTray { get; set; } = false;
+    public bool CheckForUpdatesAtStartup { get; set; } = true;
 
     public static string DefaultDownloadFolder =>
         System.IO.Path.Combine(

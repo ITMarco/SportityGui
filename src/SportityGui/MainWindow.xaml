@@ -90,6 +90,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -221,8 +222,23 @@
             </DockPanel>
         </Border>
 
+        <!-- ═══ UPDATE BANNER ═══ -->
+        <Border Grid.Row="1" Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="0,0,0,1"
+                Visibility="{Binding UpdateBannerVisible, Converter={StaticResource BoolToVis}}"
+                Padding="16,8">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Dismiss"
+                        Command="{Binding DismissUpdateBannerCommand}"
+                        Margin="8,0,0,0" />
+                <Button DockPanel.Dock="Right" Content="Download update"
+                        Command="{Binding DownloadUpdateCommand}"
+                        Style="{DynamicResource AccentButtonStyle}" />
+                <TextBlock Text="{Binding UpdateBannerText}" VerticalAlignment="Center" Foreground="#7B5800" />
+            </DockPanel>
+        </Border>
+
         <!-- ═══ MAIN CONTENT ═══ -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="240" MinWidth="140" />
                 <ColumnDefinition Width="4" />
@@ -518,13 +534,27 @@
                                FontSize="12" TextWrapping="Wrap" LineHeight="20" />
                 </Border>
 
-                <!-- M8-10: Download / Open action button (file items only) -->
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8"
-                            Visibility="{Binding SelectedItemIsFile, Converter={StaticResource BoolToVis}}">
-                    <!-- Download button (not yet downloaded) -->
-                    <Button Command="{Binding DownloadSelectedCommand}"
+                <!-- File action buttons: View (always) + Download/Open (toggles on download state) -->
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,8"
+                      Visibility="{Binding SelectedItemIsFile, Converter={StaticResource BoolToVis}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <!-- View (always available) -->
+                    <Button Grid.Column="0" Command="{Binding ViewSelectedCommand}"
+                            HorizontalAlignment="Stretch" Padding="0,8">
+                        <StackPanel Orientation="Horizontal">
+                            <icons:PackIconMaterial Kind="Eye" Width="14" Height="14"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="View" />
+                        </StackPanel>
+                    </Button>
+                    <!-- Download (not yet downloaded) -->
+                    <Button Grid.Column="2" Command="{Binding DownloadSelectedCommand}"
                             Visibility="{Binding SelectedItemIsDownloaded, Converter={StaticResource InvBoolToVis}}"
-                            Style="{StaticResource AccentButtonStyle}"
+                            Style="{DynamicResource AccentButtonStyle}"
                             HorizontalAlignment="Stretch" Padding="0,8">
                         <StackPanel Orientation="Horizontal">
                             <icons:PackIconMaterial Kind="Download" Width="14" Height="14"
@@ -532,8 +562,8 @@
                             <TextBlock Text="Download" />
                         </StackPanel>
                     </Button>
-                    <!-- Open button (already downloaded) -->
-                    <Button Command="{Binding OpenSelectedFileCommand}"
+                    <!-- Open (already downloaded) -->
+                    <Button Grid.Column="2" Command="{Binding OpenSelectedFileCommand}"
                             Visibility="{Binding SelectedItemIsDownloaded, Converter={StaticResource BoolToVis}}"
                             HorizontalAlignment="Stretch" Padding="0,8">
                         <StackPanel Orientation="Horizontal">
@@ -542,7 +572,7 @@
                             <TextBlock Text="Open" />
                         </StackPanel>
                     </Button>
-                </StackPanel>
+                </Grid>
 
                 <!-- Text content (for message items) -->
                 <Border CornerRadius="6" Padding="12"
@@ -557,7 +587,7 @@
         </Grid>
 
         <!-- ═══ STATUS BAR ═══ -->
-        <Border Grid.Row="2" Padding="12,6" BorderThickness="0,1,0,0"
+        <Border Grid.Row="3" Padding="12,6" BorderThickness="0,1,0,0"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
             <Grid>
                 <Grid.ColumnDefinitions>

@@ -48,6 +48,9 @@ public partial class MainWindow : Window
         }
 
         await Vm.RestoreChannelsAsync();
+
+        if (stateService.Preferences.CheckForUpdatesAtStartup)
+            _ = Vm.CheckForUpdateAsync();
     }
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -146,7 +149,8 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         var stateService = App.Services.GetRequiredService<StateService>();
-        var vm = new PreferencesViewModel(stateService.Preferences);
+        var updateService = App.Services.GetRequiredService<UpdateService>();
+        var vm = new PreferencesViewModel(stateService.Preferences, updateService);
         var window = new PreferencesWindow(vm) { Owner = this };
         if (window.ShowDialog() == true)
         {

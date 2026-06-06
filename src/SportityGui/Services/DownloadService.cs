@@ -4,8 +4,11 @@ using SportityGui.Models;
 
 namespace SportityGui.Services;
 
-public class DownloadService(IHttpClientFactory httpClientFactory, StateService stateService)
+public class DownloadService(IHttpClientFactory httpClientFactory, StateService stateService) : IDisposable
 {
+    private readonly Dictionary<string, string> _tempPaths = [];
+    private readonly List<string> _tempFiles = [];
+
     public async Task<string> DownloadFileAsync(
         FileItem file,
         string downloadFolder,
@@ -76,6 +79,64 @@ public class DownloadService(IHttpClientFactory httpClientFactory, StateService 
             else if (child is FolderItem sub) result.AddRange(CollectFiles(sub));
         }
         return result;
+    }
+
+    public async Task<string> ViewFileAsync(
+        FileItem file,
+        IProgress<double>? progress = null,
+        CancellationToken ct = default)
+    {
+        // If permanently downloaded and still on disk, open that directly
+        var existing = stateService.GetDownloadRecord(file.Id);
+        if (existing != null && File.Exists(existing.LocalPath))
+            return existing.LocalPath;
+
+        // Reuse cached temp download if file still exists
+        if (_tempPaths.TryGetValue(file.Id, out var cached) && File.Exists(cached))
+            return cached;
+
+        // Download to temp folder
+        var tempDir = Path.Combine(Path.GetTempPath(), "SportityGui");
+        Directory.CreateDirectory(tempDir);
+
+        var fileName = SanitizeFileName(file.Name);
+        if (!string.IsNullOrEmpty(file.FileExtension))
+        {
+            var expectedExt = "." + file.FileExtension;
+            if (!fileName.EndsWith(expectedExt, StringComparison.OrdinalIgnoreCase))
+                fileName += expectedExt;
+        }
+
+        var localPath = Path.Combine(tempDir, fileName);
+
+        var client = httpClientFactory.CreateClient("sportity");
+        using var response = await client.GetAsync(
+            file.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+
+        var total = response.Content.Headers.ContentLength ?? -1L;
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        await using var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+        var buffer = new byte[81920];
+        long downloaded = 0;
+        int read;
+        while ((read = await stream.ReadAsync(buffer, ct)) > 0)
+        {
+            await fileStream.WriteAsync(buffer.AsMemory(0, read), ct);
+            downloaded += read;
+            if (total > 0) progress?.Report((double)downloaded / total);
+        }
+
+        _tempPaths[file.Id] = localPath;
+        _tempFiles.Add(localPath);
+        return localPath;
+    }
+
+    public void Dispose()
+    {
+        foreach (var f in _tempFiles)
+            try { File.Delete(f); } catch { }
     }
 
     private static string SanitizeFileName(string name)

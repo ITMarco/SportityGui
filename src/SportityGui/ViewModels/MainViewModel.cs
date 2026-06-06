@@ -15,6 +15,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ScraperService _scraper;
     private readonly DownloadService _downloader;
     private readonly TrayService _tray;
+    private readonly UpdateService _updater;
 
     private CancellationTokenSource? _cts;
     private ChannelSectionViewModel? _activeSection;
@@ -31,6 +32,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private TreeItemViewModel? _selectedItem;
     [ObservableProperty] private string _detailText = string.Empty;
     [ObservableProperty] private string _detailMetadata = string.Empty;
+    [ObservableProperty] private bool _updateBannerVisible;
+    [ObservableProperty] private string _updateBannerText = string.Empty;
+    private string _updateRemoteVersion = string.Empty;
 
     public string? CurrentEventUrl => CurrentEvent?.Event.Url;
     public bool SelectedItemIsFile => SelectedItem?.IsFile == true;
@@ -40,12 +44,13 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<ChannelSectionViewModel> Channels { get; } = [];
     public bool HasChannels => Channels.Count > 0;
 
-    public MainViewModel(StateService state, ScraperService scraper, DownloadService downloader, TrayService tray)
+    public MainViewModel(StateService state, ScraperService scraper, DownloadService downloader, TrayService tray, UpdateService updater)
     {
         _state = state;
         _scraper = scraper;
         _downloader = downloader;
         _tray = tray;
+        _updater = updater;
 
         // Initialise fields directly to avoid triggering save-on-load
         _autoDownload = state.Preferences.AutoDownload;
@@ -603,6 +608,27 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ViewSelectedAsync()
+    {
+        if (SelectedItem?.Model is not FileItem file) return;
+        SelectedItem.MarkRead();
+        ShowProgress = true;
+        var prog = new Progress<double>(p =>
+        {
+            DownloadProgress = p * 100;
+            StatusMessage = $"Loading {file.Name} — {p:P0}";
+        });
+        try
+        {
+            var path = await _downloader.ViewFileAsync(file, prog, _cts?.Token ?? default);
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            StatusMessage = $"Viewing: {file.Name}";
+        }
+        catch (Exception ex) { StatusMessage = $"View failed: {ex.Message}"; }
+        finally { ShowProgress = false; }
+    }
+
+    [RelayCommand]
     private async Task DownloadSelectedAsync()
     {
         if (SelectedItem?.Model is not FileItem file || SelectedItem.IsDownloaded) return;
@@ -811,6 +837,45 @@ public partial class MainViewModel : ObservableObject
                 await AutoDownloadAllAsync(vm.Children, ct);
         }
     }
+
+    public async Task CheckForUpdateAsync()
+    {
+        try
+        {
+            var (hasUpdate, remoteVersion) = await _updater.CheckAsync();
+            if (hasUpdate)
+            {
+                _updateRemoteVersion = remoteVersion;
+                UpdateBannerText = $"Version {remoteVersion} is available (you have {AppInfo.Version}). Download now?";
+                UpdateBannerVisible = true;
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private async Task DownloadUpdateAsync()
+    {
+        UpdateBannerVisible = false;
+        ShowProgress = true;
+        StatusMessage = "Downloading update…";
+        var prog = new Progress<double>(p =>
+        {
+            DownloadProgress = p * 100;
+            StatusMessage = $"Downloading update — {p:P0}";
+        });
+        try
+        {
+            var path = await _updater.DownloadUpdateAsync(_updateRemoteVersion, prog);
+            StatusMessage = $"Update downloaded: {path}";
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\""));
+        }
+        catch (Exception ex) { StatusMessage = $"Update download failed: {ex.Message}"; }
+        finally { ShowProgress = false; }
+    }
+
+    [RelayCommand]
+    private void DismissUpdateBanner() => UpdateBannerVisible = false;
 
     private void ShowFileMetadata(TreeItemViewModel vm)
     {
