@@ -864,7 +864,7 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            var (hasUpdate, remoteVersion) = await _updater.CheckAsync();
+            var (hasUpdate, remoteVersion, _) = await _updater.CheckAsync();
             if (hasUpdate)
             {
                 _updateRemoteVersion = remoteVersion;

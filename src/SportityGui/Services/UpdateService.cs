@@ -5,11 +5,12 @@ namespace SportityGui.Services;
 
 public class UpdateService(IHttpClientFactory httpClientFactory)
 {
-    public async Task<(bool HasUpdate, string RemoteVersion)> CheckAsync(CancellationToken ct = default)
+    // Returns (HasUpdate, RemoteVersion, Error) — Error is non-null when the check couldn't be completed
+    public async Task<(bool HasUpdate, string RemoteVersion, string? Error)> CheckAsync(CancellationToken ct = default)
     {
         string? raw = null;
+        string? lastError = null;
 
-        // Try GitHub raw first, fall back to own server
         foreach (var url in new[] { AppInfo.UpdateVersionUrlPrimary, AppInfo.UpdateVersionUrlFallback })
         {
             try
@@ -19,20 +20,29 @@ public class UpdateService(IHttpClientFactory httpClientFactory)
                 if (response.IsSuccessStatusCode)
                 {
                     raw = (await response.Content.ReadAsStringAsync(ct)).Trim();
+                    lastError = null;
                     break;
                 }
+                lastError = $"HTTP {(int)response.StatusCode} from {new Uri(url).Host}";
             }
-            catch { }
+            catch (Exception ex)
+            {
+                lastError = $"{ex.GetType().Name}: {ex.Message}";
+            }
         }
 
         if (string.IsNullOrWhiteSpace(raw))
-            return (false, string.Empty);
+            return (false, string.Empty, lastError ?? "Could not reach update server");
 
-        if (!System.Version.TryParse(raw, out var remote) ||
-            !System.Version.TryParse(AppInfo.Version, out var current))
-            return (false, raw);
+        // Prefer proper version comparison; fall back to string inequality if parse fails
+        bool hasUpdate;
+        if (System.Version.TryParse(raw, out var remote) &&
+            System.Version.TryParse(AppInfo.Version, out var current))
+            hasUpdate = remote > current;
+        else
+            hasUpdate = !string.Equals(raw, AppInfo.Version, StringComparison.OrdinalIgnoreCase);
 
-        return (remote > current, raw);
+        return (hasUpdate, raw, null);
     }
 
     public async Task<string> DownloadUpdateAsync(
@@ -40,12 +50,11 @@ public class UpdateService(IHttpClientFactory httpClientFactory)
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
-        var downloadsFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        downloadsFolder = Path.Combine(downloadsFolder, "Downloads");
+        var downloadsFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         Directory.CreateDirectory(downloadsFolder);
 
-        var fileName = $"SportityGui-v{remoteVersion}.zip";
-        var localPath = Path.Combine(downloadsFolder, fileName);
+        var localPath = Path.Combine(downloadsFolder, $"SportityGui-v{remoteVersion}.zip");
 
         var client = httpClientFactory.CreateClient("sportity");
         using var response = await client.GetAsync(

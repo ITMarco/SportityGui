@@ -64,13 +64,29 @@ public partial class PreferencesViewModel : ObservableObject
     {
         try
         {
-            var (hasUpdate, remoteVersion) = await _updater.CheckAsync();
-            var msg = hasUpdate
-                ? $"Version {remoteVersion} is available (you have {AppInfo.Version})."
-                : $"You are up to date (version {AppInfo.Version}).";
+            var (hasUpdate, remoteVersion, error) = await _updater.CheckAsync();
+
+            string msg;
+            System.Windows.MessageBoxImage icon;
+
+            if (error != null)
+            {
+                msg = $"Could not reach the update server.\n\nDetails: {error}";
+                icon = System.Windows.MessageBoxImage.Warning;
+            }
+            else if (hasUpdate)
+            {
+                msg = $"Version {remoteVersion} is available!\nYou are running {AppInfo.Version}.";
+                icon = System.Windows.MessageBoxImage.Information;
+            }
+            else
+            {
+                msg = $"You are up to date.\nRunning {AppInfo.Version}, latest is {remoteVersion}.";
+                icon = System.Windows.MessageBoxImage.Information;
+            }
+
             System.Windows.MessageBox.Show(msg, "SportityGui Update Check",
-                System.Windows.MessageBoxButton.OK,
-                hasUpdate ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Information);
+                System.Windows.MessageBoxButton.OK, icon);
         }
         catch (Exception ex)
         {
