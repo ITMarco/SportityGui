@@ -375,17 +375,44 @@
                                                         </Border.InputBindings>
                                                         <Border.ContextMenu>
                                                             <ContextMenu>
+                                                                <MenuItem Header="Update now"
+                                                                          Command="{Binding PlacementTarget.Tag.LoadChannelEventCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Open in browser"
+                                                                          Command="{Binding PlacementTarget.Tag.EventOpenInBrowserCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <MenuItem Header="Open in Explorer"
+                                                                          Command="{Binding PlacementTarget.Tag.EventOpenFolderCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <MenuItem Header="Copy URL"
+                                                                          Command="{Binding PlacementTarget.Tag.EventCopyUrlCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <Separator />
                                                                 <MenuItem Header="Mark all as read"
                                                                           Command="{Binding PlacementTarget.Tag.EventMarkAllReadCommand,
                                                                                             RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding PlacementTarget.DataContext,
                                                                                                      RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <MenuItem Header="Mark all as unread"
+                                                                          Command="{Binding PlacementTarget.Tag.EventMarkAllUnreadCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <Separator />
                                                                 <MenuItem Header="Download all documents"
                                                                           Command="{Binding PlacementTarget.Tag.EventDownloadAllCommand,
                                                                                             RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding PlacementTarget.DataContext,
                                                                                                      RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                                                <Separator />
                                                                 <MenuItem Header="Remove all documents"
                                                                           Command="{Binding PlacementTarget.Tag.EventRemoveAllCommand,
                                                                                             RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -463,38 +490,43 @@
                           BorderThickness="0"
                           SelectedItemChanged="ContentTree_SelectedItemChanged"
                           PreviewMouseLeftButtonDown="ContentTree_PreviewMouseLeftButtonDown"
+                          PreviewMouseRightButtonDown="ContentTree_PreviewMouseRightButtonDown"
                           Visibility="{Binding IsLoading, Converter={StaticResource InvBoolToVis}}">
                     <TreeView.ItemContainerStyle>
                         <Style TargetType="TreeViewItem">
                             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                             <Setter Property="Padding" Value="2,3" />
                             <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                            <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+                            <Setter Property="ContextMenu">
+                                <Setter.Value>
+                                    <ContextMenu>
+                                        <MenuItem Header="Update now"
+                                                  Command="{Binding PlacementTarget.Tag.RefreshCurrentEventCommand,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <Separator />
+                                        <MenuItem Header="Mark as read"
+                                                  Command="{Binding PlacementTarget.Tag.MarkSelectedReadCommand,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="Mark as unread"
+                                                  Command="{Binding PlacementTarget.Tag.MarkSelectedUnreadCommand,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <Separator />
+                                        <MenuItem Header="Download file"
+                                                  Command="{Binding PlacementTarget.Tag.DownloadSelectedCommand,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <Separator />
+                                        <MenuItem Header="Copy URL"
+                                                  Command="{Binding PlacementTarget.Tag.CopyUrlCommand,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="Open containing folder"
+                                                  Command="{Binding PlacementTarget.Tag.OpenContainingFolderCommand,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    </ContextMenu>
+                                </Setter.Value>
+                            </Setter>
                         </Style>
                     </TreeView.ItemContainerStyle>
-                    <TreeView.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="Update now"
-                                      Command="{Binding PlacementTarget.Tag.RefreshCurrentEventCommand,
-                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                            <Separator />
-                            <MenuItem Header="Download file"
-                                      Command="{Binding PlacementTarget.Tag.DownloadSelectedCommand,
-                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                            <MenuItem Header="Download all in folder"
-                                      Command="{Binding PlacementTarget.Tag.DownloadFolderAsyncCommand,
-                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                      CommandParameter="{Binding}" />
-                            <Separator />
-                            <MenuItem Header="Copy URL"
-                                      Command="{Binding PlacementTarget.Tag.CopyUrlCommand,
-                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                      CommandParameter="{Binding}" />
-                            <MenuItem Header="Open containing folder"
-                                      Command="{Binding PlacementTarget.Tag.OpenContainingFolderCommand,
-                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                      CommandParameter="{Binding}" />
-                        </ContextMenu>
-                    </TreeView.ContextMenu>
                 </TreeView>
 
                 <!-- Empty state -->

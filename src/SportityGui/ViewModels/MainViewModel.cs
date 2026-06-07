@@ -685,28 +685,6 @@ public partial class MainViewModel : ObservableObject
 
     // ── Folder download ──────────────────────────────────────────────────────
 
-    [RelayCommand]
-    private async Task DownloadFolderAsync(TreeItemViewModel? vm)
-    {
-        if (vm?.Model is not FolderItem folder) return;
-
-        ShowProgress = true;
-        StatusMessage = $"Downloading folder: {folder.Name}…";
-        var prog = new Progress<double>(p =>
-        {
-            DownloadProgress = p * 100;
-            StatusMessage = $"Downloading {folder.Name} — {p:P0}";
-        });
-        try
-        {
-            _cts = new CancellationTokenSource();
-            await _downloader.DownloadFolderAsync(folder, GetEventDownloadFolder(), prog, _cts.Token);
-            StatusMessage = $"Folder downloaded: {folder.Name}";
-        }
-        catch (OperationCanceledException) { StatusMessage = "Download cancelled."; }
-        catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
-        finally { ShowProgress = false; }
-    }
 
     // ── Event context menu (sidebar right-click) ─────────────────────────────
 
@@ -727,6 +705,58 @@ public partial class MainViewModel : ObservableObject
             StatusMessage = "All items marked as read.";
         }
         catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private async Task EventMarkAllUnreadAsync(SportityEvent ev)
+    {
+        if (ev == null) return;
+        try
+        {
+            await EnsureEventLoadedAsync(ev);
+            CurrentEvent?.MarkAllUnread(clearDownloads: false);
+            StatusMessage = "All items marked as unread.";
+        }
+        catch (Exception ex) { StatusMessage = $"Error: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private void EventOpenInBrowser(SportityEvent ev)
+    {
+        if (ev == null) return;
+        Process.Start(new ProcessStartInfo(ev.Url) { UseShellExecute = true });
+    }
+
+    [RelayCommand]
+    private void EventOpenFolder(SportityEvent ev)
+    {
+        if (ev == null) return;
+        var folder = GetEventDownloadFolder(ev);
+        Directory.CreateDirectory(folder);
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+    }
+
+    [RelayCommand]
+    private void EventCopyUrl(SportityEvent ev)
+    {
+        if (ev == null) return;
+        System.Windows.Clipboard.SetText(ev.Url);
+    }
+
+    [RelayCommand]
+    private void MarkSelectedRead()
+    {
+        if (SelectedItem == null) return;
+        SelectedItem.MarkRead();
+        CurrentEvent?.RefreshAllBadges();
+    }
+
+    [RelayCommand]
+    private void MarkSelectedUnread()
+    {
+        if (SelectedItem == null) return;
+        SelectedItem.MarkUnread();
+        CurrentEvent?.RefreshAllBadges();
     }
 
     [RelayCommand]
@@ -771,19 +801,19 @@ public partial class MainViewModel : ObservableObject
     // ── Context menu actions ─────────────────────────────────────────────────
 
     [RelayCommand]
-    private void CopyUrl(TreeItemViewModel? vm)
+    private void CopyUrl()
     {
-        if (vm?.Model is FileItem f)
+        if (SelectedItem?.Model is FileItem f)
             System.Windows.Clipboard.SetText(f.DownloadUrl);
-        else if (vm?.Model is TextItem t)
+        else if (SelectedItem?.Model is TextItem t)
             System.Windows.Clipboard.SetText(t.ContentUrl);
     }
 
     [RelayCommand]
-    private void OpenContainingFolder(TreeItemViewModel? vm)
+    private void OpenContainingFolder()
     {
-        if (vm?.LocalPath is null) return;
-        var dir = Path.GetDirectoryName(vm.LocalPath);
+        if (SelectedItem?.LocalPath is null) return;
+        var dir = Path.GetDirectoryName(SelectedItem.LocalPath);
         if (dir != null)
             Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
     }
@@ -828,8 +858,15 @@ public partial class MainViewModel : ObservableObject
         var eventName = CurrentEvent?.Event.Name ?? string.Empty;
         if (string.IsNullOrEmpty(eventName)) eventName = "Event";
 
-        // When a channel code is known, organise as: base / channel / event
-        // When no channel code, organise as: base / event  (no spurious fallback folder)
+        return string.IsNullOrEmpty(channelCode)
+            ? Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(eventName))
+            : Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(channelCode), SanitizeFolderName(eventName));
+    }
+
+    private string GetEventDownloadFolder(SportityEvent ev)
+    {
+        var channelCode = ev.ChannelCode;
+        var eventName = string.IsNullOrEmpty(ev.Name) ? "Event" : ev.Name;
         return string.IsNullOrEmpty(channelCode)
             ? Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(eventName))
             : Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(channelCode), SanitizeFolderName(eventName));

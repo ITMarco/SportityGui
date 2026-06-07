@@ -53,12 +53,12 @@ public partial class EventViewModel : ObservableObject
         RefreshAllBadges();
     }
 
-    public void MarkAllUnread()
+    public void MarkAllUnread(bool clearDownloads = true)
     {
         var ids = new List<string>();
         CollectNonFolderIds(_allItems, ids);
         _state.MarkUnreadBatch(ids);
-        SetReadRecursive(_allItems, read: false);
+        SetReadRecursive(_allItems, read: false, clearDownloads);
         RefreshAllBadges();
     }
 
@@ -71,16 +71,16 @@ public partial class EventViewModel : ObservableObject
         }
     }
 
-    private static void SetReadRecursive(IEnumerable<TreeItemViewModel> items, bool read)
+    private static void SetReadRecursive(IEnumerable<TreeItemViewModel> items, bool read, bool clearDownloads = true)
     {
         foreach (var vm in items)
         {
             if (!vm.IsFolder)
             {
                 vm.IsRead = read;
-                if (!read) { vm.IsDownloaded = false; vm.LocalPath = null; }
+                if (!read && clearDownloads) { vm.IsDownloaded = false; vm.LocalPath = null; }
             }
-            SetReadRecursive(vm.Children, read);
+            SetReadRecursive(vm.Children, read, clearDownloads);
         }
     }
 

@@ -54,7 +54,7 @@ public partial class TreeItemViewModel : ObservableObject
     private bool ComputeBadge() =>
         IsFolder
             ? Children.Any(c => c.ShowUnreadBadge)
-            : (!IsRead && !IsDownloaded);
+            : !IsRead;
 
     // Called whenever read/download state changes, and propagated up through Parent chain
     private void UpdateBadge()
@@ -86,6 +86,28 @@ public partial class TreeItemViewModel : ObservableObject
         IsNew = false;
         UpdateBadge();
         NotifyParentChain();
+    }
+
+    public void MarkUnread()
+    {
+        _state.MarkUnreadBatch(CollectLeafIds().ToList());
+        ApplyUnreadState();
+        NotifyParentChain();
+    }
+
+    private IEnumerable<string> CollectLeafIds()
+    {
+        if (!IsFolder) { yield return Model.Id; yield break; }
+        foreach (var child in Children)
+            foreach (var id in child.CollectLeafIds())
+                yield return id;
+    }
+
+    private void ApplyUnreadState()
+    {
+        if (!IsFolder) IsRead = false;
+        foreach (var child in Children) child.ApplyUnreadState();
+        UpdateBadge();
     }
 
     public void NotifyDownloaded(string path)

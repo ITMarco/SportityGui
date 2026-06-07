@@ -68,6 +68,13 @@ public partial class MainWindow : Window
             Vm.ItemClickedCommand.Execute(vm);
     }
 
+    private void ContentTree_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var tvi = FindAncestor<TreeViewItem>(e.OriginalSource as DependencyObject);
+        if (tvi?.DataContext is TreeItemViewModel vm)
+            Vm.SelectedItem = vm;
+    }
+
     private void ContentTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount < 2) return;
