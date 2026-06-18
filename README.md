@@ -56,6 +56,8 @@ Direct download for x64 Windows executable packaged as zip available [here](http
 - Windows balloon notification when new files appear in a refreshed event
 - Notification when new events appear in a refreshed channel
 
+https://github.com/user-attachments/assets/8d3a0e05-ef58-494f-ac36-ca6c366efc12
+
 ## Tech stack
 
 | | |
