@@ -391,16 +391,9 @@ public partial class MainViewModel : ObservableObject
         StatusMessage = "Refreshing all…";
         try
         {
-            // Refresh the currently open event (if any) and all sidebar channels in parallel
+            // Refresh all sidebar channels in parallel; each channel section also refreshes
+            // the center panel when the currently open event belongs to it
             var tasks = new List<Task>();
-
-            if (CurrentEvent != null)
-            {
-                var url = CurrentEvent.Event.Url;
-                var (channelCode, eventId) = ScraperService.ParseEventUrl(url);
-                var currentName = CurrentEvent.Event.Name;
-                tasks.Add(LoadEventInCenterAsync(url, ct, channelCode, eventId, currentName));
-            }
 
             tasks.AddRange(Channels.ToList().Select(s => RefreshSectionAsync(s, ct)));
 
@@ -435,6 +428,13 @@ public partial class MainViewModel : ObservableObject
                 var channel = await _scraper.ScrapeChannelAsync(section.Url, ct);
                 section.Name = channel.Name;
                 section.SetEvents(channel.Events);
+
+                if (CurrentEvent != null && channel.Events.Any(e => e.Url == CurrentEvent.Event.Url))
+                {
+                    var eventUrl = CurrentEvent.Event.Url;
+                    var (channelCode, eventId) = ScraperService.ParseEventUrl(eventUrl);
+                    await LoadEventInCenterAsync(eventUrl, ct, channelCode, eventId, CurrentEvent.Event.Name);
+                }
 
                 var newEvents = channel.Events.Where(e => !previousUrls.Contains(e.Url)).ToList();
                 if (previousUrls.Count > 0 && newEvents.Count > 0)

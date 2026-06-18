@@ -11,7 +11,7 @@
     <AssemblyName>SportityGui</AssemblyName>
     <RootNamespace>SportityGui</RootNamespace>
     <ApplicationIcon>Assets\Sportity.ico</ApplicationIcon>
-    <Version>1.4</Version>
+    <Version>1.5</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
