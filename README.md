@@ -2,7 +2,7 @@
 
 A Windows desktop app for browsing [Sportity](https://webapp.sportity.com) rallying channels and events. Scrapes the Sportity website and presents channels, events, folders, files and messages in a clean, modern interface with full offline download support.
 
-Direct download for x64 Windows executable packaged as zip available [here](http://www.shoarmateam.nl/rally/SportityGui/SportityGui-current.zip) 
+Direct download for x64 Windows executable packaged as zip available on the releases tab or on shoarmateam: [here](http://www.shoarmateam.nl/rally/SportityGui/SportityGui-current.zip) 
 
 ## Features
 
@@ -13,6 +13,8 @@ Direct download for x64 Windows executable packaged as zip available [here](http
 - **Single-event channels** (pages that serve files directly at the channel URL) are detected and loaded automatically
 - Newest channel always appears at the top; channels are **drag-and-drop reorderable**
 - All loaded channels and their order **restore on next launch** (re-scraped in the background with spinners)
+
+https://github.com/user-attachments/assets/8d3a0e05-ef58-494f-ac36-ca6c366efc12
 
 ### Left panel
 - Bold channel name header with **· N events** count, collapse ▼/▶ chevron, ⟳ refresh, and ✕ remove buttons
@@ -55,8 +57,6 @@ Direct download for x64 Windows executable packaged as zip available [here](http
 ### Notifications
 - Windows balloon notification when new files appear in a refreshed event
 - Notification when new events appear in a refreshed channel
-
-https://github.com/user-attachments/assets/8d3a0e05-ef58-494f-ac36-ca6c366efc12
 
 ## Tech stack
 
