@@ -54,27 +54,45 @@ public class UpdateService(IHttpClientFactory httpClientFactory)
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         Directory.CreateDirectory(downloadsFolder);
 
-        var localPath = Path.Combine(downloadsFolder, $"SportityGui-v{remoteVersion}.zip");
-
         var client = httpClientFactory.CreateClient("sportity");
-        using var response = await client.GetAsync(
-            AppInfo.UpdateZipUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
+        Exception? lastEx = null;
 
-        var total = response.Content.Headers.ContentLength ?? -1L;
-        await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        await using var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
-
-        var buffer = new byte[81920];
-        long downloaded = 0;
-        int read;
-        while ((read = await stream.ReadAsync(buffer, ct)) > 0)
+        foreach (var url in new[] { AppInfo.UpdateZipUrlPrimary, AppInfo.UpdateZipUrlFallback })
         {
-            await fileStream.WriteAsync(buffer.AsMemory(0, read), ct);
-            downloaded += read;
-            if (total > 0) progress?.Report((double)downloaded / total);
+            try
+            {
+                using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (!response.IsSuccessStatusCode)
+                {
+                    lastEx = new HttpRequestException($"HTTP {(int)response.StatusCode} from {new Uri(url).Host}");
+                    continue;
+                }
+
+                var ext = Path.GetExtension(new Uri(url).AbsolutePath); // ".exe" or ".zip"
+                var localPath = Path.Combine(downloadsFolder, $"SportityGui-v{remoteVersion}{ext}");
+
+                var total = response.Content.Headers.ContentLength ?? -1L;
+                await using var stream = await response.Content.ReadAsStreamAsync(ct);
+                await using var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+                var buffer = new byte[81920];
+                long downloaded = 0;
+                int read;
+                while ((read = await stream.ReadAsync(buffer, ct)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer.AsMemory(0, read), ct);
+                    downloaded += read;
+                    if (total > 0) progress?.Report((double)downloaded / total);
+                }
+
+                return localPath;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastEx = ex;
+            }
         }
 
-        return localPath;
+        throw lastEx ?? new InvalidOperationException("Could not download update from any source.");
     }
 }

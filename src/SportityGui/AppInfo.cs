@@ -10,5 +10,6 @@ public static class AppInfo
 
     public const string UpdateVersionUrlPrimary  = "https://raw.githubusercontent.com/ITMarco/SportityGui/main/updateversion.txt";
     public const string UpdateVersionUrlFallback = "https://www.shoarmateam.nl/rally/SportityGui/updateversion.txt";
-    public const string UpdateZipUrl             = "https://www.shoarmateam.nl/rally/SportityGui/SportityGui-current.zip";
+    public const string UpdateZipUrlPrimary      = "https://github.com/ITMarco/SportityGui/releases/latest/download/SportityGui-standalone.exe";
+    public const string UpdateZipUrlFallback     = "https://www.shoarmateam.nl/rally/SportityGui/SportityGui-current.zip";
 }
