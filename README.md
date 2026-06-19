@@ -1,4 +1,4 @@
-# SportityGui
+# Sportity for Windows (SportityGui)
 
 A Windows desktop app for browsing [Sportity](https://webapp.sportity.com) rallying channels and events. Scrapes the Sportity website and presents channels, events, folders, files and messages in a clean, modern interface with full offline download support.
 
