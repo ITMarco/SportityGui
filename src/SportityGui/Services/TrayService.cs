@@ -36,13 +36,16 @@ public sealed class TrayService : IDisposable
         _icon.ShowBalloonTip(5000, title, message, System.Windows.Forms.ToolTipIcon.Info);
     }
 
-    private static void RestoreWindow()
+    public static void RestoreWindow()
     {
         var window = Application.Current.MainWindow;
         if (window == null) return;
         window.Show();
         window.WindowState = WindowState.Normal;
         window.Activate();
+        // Activate() alone may not bring the window forward when another app has focus.
+        window.Topmost = true;
+        window.Topmost = false;
     }
 
     private static System.Drawing.Icon LoadIcon()

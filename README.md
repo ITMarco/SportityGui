@@ -47,6 +47,7 @@ https://github.com/user-attachments/assets/8d3a0e05-ef58-494f-ac36-ca6c366efc12
 - Global default interval set in Preferences applies to newly added channels
 
 ### System tray
+- **Single instance** — starting SportityGui again brings the running copy to the front (also from the tray) instead of opening a second one. Copies in different folders run independently
 - **Start minimised** with `--minimized` command-line flag
 - **Minimize to tray** preference — hides from taskbar, shows in system tray with correct app icon
 - Double-click or context menu to restore; balloon notifications for new files and events
@@ -57,6 +58,11 @@ https://github.com/user-attachments/assets/8d3a0e05-ef58-494f-ac36-ca6c366efc12
 - Auto-download toggle
 - Auto-refresh interval (global default)
 - Minimize-to-tray option
+
+### Updates
+- Checks for a new version at startup (optional) or via Preferences → *Check for updates*
+- Downloads the update (GitHub release `.exe`, or the shoarmateam `.zip` as fallback) and offers to **install it and restart** — the running exe is swapped in place, so settings and state next to it are kept
+- If the app folder isn't writable, the download is shown in Explorer to install by hand
 
 ### Notifications
 - Windows balloon notification when new files appear in a refreshed event

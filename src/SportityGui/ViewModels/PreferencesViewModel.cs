@@ -106,15 +106,7 @@ public partial class PreferencesViewModel : ObservableObject
                 System.Windows.Application.Current.Dispatcher.Invoke(
                     () => System.Windows.Application.Current.MainWindow.Cursor = null);
 
-                System.Diagnostics.Process.Start(
-                    new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
-                    { UseShellExecute = true });
-
-                System.Windows.MessageBox.Show(
-                    $"Download complete!\n{path}",
-                    "SportityGui",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
+                UpdateUi.AfterDownload(path, remoteVersion);
             }
             catch (Exception ex)
             {

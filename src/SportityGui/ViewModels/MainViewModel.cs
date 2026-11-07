@@ -1364,8 +1364,8 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var path = await _updater.DownloadUpdateAsync(_updateRemoteVersion, prog);
-            StatusMessage = $"Update downloaded: {path}";
-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\""));
+            ShowProgress = false;
+            StatusMessage = UpdateUi.AfterDownload(path, _updateRemoteVersion);
         }
         catch (Exception ex) { StatusMessage = $"Update download failed: {ex.Message}"; }
         finally { ShowProgress = false; }
