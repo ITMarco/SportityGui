@@ -84,6 +84,11 @@ public partial class EventViewModel : ObservableObject
         }
     }
 
+    public void ReloadDownloadState()
+    {
+        foreach (var vm in _allItems) vm.ReloadDownloadState();
+    }
+
     // Force bottom-up re-evaluation of all badge states after any item interaction
     public void RefreshAllBadges()
     {

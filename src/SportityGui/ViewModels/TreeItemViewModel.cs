@@ -118,6 +118,17 @@ public partial class TreeItemViewModel : ObservableObject
         NotifyParentChain();
     }
 
+    /// Re-read download state from StateService (after files were moved to another folder).
+    public void ReloadDownloadState()
+    {
+        if (Model is FileItem)
+        {
+            LocalPath = _state.GetDownloadRecord(Model.Id)?.LocalPath;
+            IsDownloaded = _state.IsDownloaded(Model.Id);
+        }
+        foreach (var child in Children) child.ReloadDownloadState();
+    }
+
     // Called by EventViewModel.RefreshAllBadges() as a guaranteed sweep
     public void RefreshBadge() => UpdateBadge();
 }

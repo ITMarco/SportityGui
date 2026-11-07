@@ -36,6 +36,10 @@ https://github.com/user-attachments/assets/8d3a0e05-ef58-494f-ac36-ca6c366efc12
 - Files saved to `DownloadFolder / ChannelCode / EventName /`; no channel subfolder when channel code is unknown
 - Event folders use the display name (not the internal UUID)
 - **Download** button in the details panel for single files; switches to **Open** once downloaded
+- **Custom download folder per channel or event** — right-click a channel header or event → *Set download folder…* (a channel folder gets one subfolder per event; an event folder is used as-is). *Use default download folder* reverts it. A folder icon in the channel header shows a custom folder is set
+- When a download folder changes (per channel, per event, or the default in Preferences), the app offers to **move already-downloaded files** to the new folder
+- **View** opens the downloaded copy if there is one, otherwise downloads to the system temp folder (`%TEMP%\SportityGui\<file-id>\`) and opens it from there
+- If saving or viewing fails because of the local disk (access denied, file in use…), a **folder picker** lets you choose another folder, and you can keep that folder for the event
 
 ### Auto-refresh
 - Per-channel/event refresh interval — `[− N min +]` in the toolbar shows and edits the active channel's interval

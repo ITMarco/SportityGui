@@ -10,4 +10,6 @@ public class SavedChannel
     public int SortOrder { get; set; } = 0;
     public SavedChannelType Type { get; set; } = SavedChannelType.Channel;
     public int AutoRefreshMinutes { get; set; } = 0;
+    /// Custom base folder for this channel's events (null = default DownloadFolder/ChannelCode)
+    public string? DownloadFolder { get; set; }
 }

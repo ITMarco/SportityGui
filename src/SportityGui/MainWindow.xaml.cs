@@ -153,7 +153,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
+    private async void Settings_Click(object sender, RoutedEventArgs e)
     {
         var stateService = App.Services.GetRequiredService<StateService>();
         var updateService = App.Services.GetRequiredService<UpdateService>();
@@ -161,10 +161,18 @@ public partial class MainWindow : Window
         var window = new PreferencesWindow(vm) { Owner = this };
         if (window.ShowDialog() == true)
         {
+            var oldFolder = stateService.Preferences.DownloadFolder;
             vm.ApplyTo(stateService.Preferences);
             stateService.SavePreferences();
             Vm.AutoDownload = stateService.Preferences.AutoDownload;
             Vm.AutoRefreshMinutes = stateService.Preferences.AutoRefreshMinutes;
+
+            var newFolder = stateService.Preferences.DownloadFolder;
+            if (!string.IsNullOrWhiteSpace(oldFolder) && !string.IsNullOrWhiteSpace(newFolder))
+            {
+                try { await Vm.OnDefaultDownloadFolderChangedAsync(oldFolder, newFolder); }
+                catch (Exception ex) { Vm.StatusMessage = $"Could not move files: {ex.Message}"; }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SportityGui.Models;
@@ -16,6 +17,7 @@ public partial class MainViewModel : ObservableObject
     private readonly DownloadService _downloader;
     private readonly TrayService _tray;
     private readonly UpdateService _updater;
+    private readonly IDialogService _dialogs;
 
     private CancellationTokenSource? _cts;
     private ChannelSectionViewModel? _activeSection;
@@ -44,8 +46,10 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<ChannelSectionViewModel> Channels { get; } = [];
     public bool HasChannels => Channels.Count > 0;
 
-    public MainViewModel(StateService state, ScraperService scraper, DownloadService downloader, TrayService tray, UpdateService updater)
+    public MainViewModel(StateService state, ScraperService scraper, DownloadService downloader, TrayService tray, UpdateService updater,
+        IDialogService dialogs)
     {
+        _dialogs = dialogs;
         _state = state;
         _scraper = scraper;
         _downloader = downloader;
@@ -241,7 +245,8 @@ public partial class MainViewModel : ObservableObject
         else if (hostSection == null)
         {
             // Create new standalone section
-            section = CreateSection(url, eventId, SavedChannelType.StandaloneEvent, channelCode: channelCode);
+            section = CreateSection(url, eventId, SavedChannelType.StandaloneEvent, channelCode: channelCode,
+                downloadFolder: _state.GetEventFolder(url));
             Channels.Insert(0, section);
             OnPropertyChanged(nameof(HasChannels));
         }
@@ -349,7 +354,12 @@ public partial class MainViewModel : ObservableObject
         }
 
         if (AutoDownload)
-            await AutoDownloadAllAsync(CurrentEvent.DisplayedItems, ct);
+        {
+            var failed = await DownloadAllInCurrentEventAsync(ct);
+            if (failed > 0 && !_dialogs.CanPrompt)
+                _tray.ShowNotification("SportityGui",
+                    $"{failed} file(s) of {displayName} could not be saved. Open SportityGui to choose another download folder.");
+        }
     }
 
     // ── Cancel ──────────────────────────────────────────────────────────────
@@ -472,10 +482,15 @@ public partial class MainViewModel : ObservableObject
     {
         if (deleteFiles)
         {
-            var channelCode = section.ChannelCode.Length > 0 ? section.ChannelCode
-                : SanitizeFolderName(section.Name.Length > 0 ? section.Name : "Sportity");
-            var folder = Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(channelCode));
-            _state.DeleteChannelFiles(folder);
+            var roots = section.Events.Select(e => ResolveEventFolder(e, section)).ToList();
+            if (section.Type == SavedChannelType.Channel)
+            {
+                if (ChannelBaseFolder(section, section.ChannelCode) is { } channelBase) roots.Add(channelBase);
+            }
+            else roots.Add(ResolveEventFolder(SectionEvent(section), section));
+
+            foreach (var root in roots.Distinct(StringComparer.OrdinalIgnoreCase))
+                _state.DeleteDownloadsUnder(root);
         }
 
         section.StopTimer();
@@ -562,7 +577,8 @@ public partial class MainViewModel : ObservableObject
             // Always derive channel code from URL — sc.Name is the display title, not the code
             var section = CreateSection(sc.Url, sc.Name, sc.Type, sc.IsCollapsed,
                 channelCode: null,
-                autoRefreshMinutes: sc.AutoRefreshMinutes);
+                autoRefreshMinutes: sc.AutoRefreshMinutes,
+                downloadFolder: sc.Type == SavedChannelType.Channel ? sc.DownloadFolder : _state.GetEventFolder(sc.Url));
             Channels.Add(section);
         }
         OnPropertyChanged(nameof(HasChannels));
@@ -598,89 +614,140 @@ public partial class MainViewModel : ObservableObject
     {
         if (vm?.IsFile != true) return;
         vm.MarkRead();
+        CurrentEvent?.RefreshAllBadges();
 
-        if (!vm.IsDownloaded)
+        if (!vm.IsDownloaded && !await DownloadItemAsync(vm))
         {
-            ShowProgress = true;
-            StatusMessage = $"Downloading {vm.Name}…";
-            var prog = new Progress<double>(p =>
-            {
-                DownloadProgress = p * 100;
-                StatusMessage = $"Downloading {vm.Name} — {p:P0}";
-            });
-            try
-            {
-                var path = await _downloader.DownloadFileAsync(
-                    (FileItem)vm.Model, GetEventDownloadFolder(), prog);
-                vm.NotifyDownloaded(path);
-                OnPropertyChanged(nameof(SelectedItemIsDownloaded));
-                StatusMessage = $"Downloaded: {vm.Name}";
-            }
-            catch (Exception ex) { StatusMessage = $"Download failed: {ex.Message}"; }
-            finally { ShowProgress = false; }
+            ShowFileMetadata(vm);
+            return;
         }
 
-        if (vm.IsDownloaded && vm.LocalPath != null)
-        {
-            try { Process.Start(new ProcessStartInfo(vm.LocalPath) { UseShellExecute = true }); }
-            catch { /* file may have moved */ }
-        }
+        if (vm.LocalPath != null && !TryOpenFile(vm.LocalPath, out var error))
+            StatusMessage = $"Could not open {vm.Name}: {error}";
 
         ShowFileMetadata(vm);
     }
 
+    /// <summary>
+    /// View = open the downloaded copy if there is one, otherwise download to the system temp folder
+    /// and open it from there. If that fails (and it isn't a network problem), let the user choose a
+    /// folder to download the file to, and open it from there.
+    /// </summary>
     [RelayCommand]
     private async Task ViewSelectedAsync()
     {
-        if (SelectedItem?.Model is not FileItem file) return;
-        SelectedItem.MarkRead();
-        ShowProgress = true;
+        if (SelectedItem is not { Model: FileItem file } vm) return;
+        vm.MarkRead();
+        CurrentEvent?.RefreshAllBadges();
+
+        if (vm.IsDownloaded && vm.LocalPath != null && TryOpenFile(vm.LocalPath, out _))
+        {
+            StatusMessage = $"Viewing: {file.Name}";
+            return;
+        }
+
         var prog = new Progress<double>(p =>
         {
             DownloadProgress = p * 100;
             StatusMessage = $"Loading {file.Name} — {p:P0}";
         });
+
+        Exception failure;
+        ShowProgress = true;
         try
         {
-            var path = await _downloader.ViewFileAsync(file, prog, _cts?.Token ?? default);
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            var tempPath = await _downloader.DownloadToTempAsync(file, prog);
+            OpenFile(tempPath);
+            StatusMessage = $"Viewing: {file.Name}";
+            return;
+        }
+        catch (Exception ex) when (IsNetworkError(ex))
+        {
+            StatusMessage = $"View failed: {ex.Message}";
+            return;
+        }
+        catch (Exception ex) { failure = ex; }
+        finally { ShowProgress = false; }
+
+        // The system temp folder did not work → ask where to download the file instead
+        var ev = CurrentEvent?.Event;
+        var section = _activeSection;
+        var folder = AskFallbackFolder($"Could not view \"{file.Name}\"", failure, CurrentEventFolder());
+        if (folder == null)
+        {
+            StatusMessage = $"View failed: {failure.Message}";
+            return;
+        }
+
+        var scope = new FallbackScope { Folder = folder };
+        ShowProgress = true;
+        try
+        {
+            var path = await DownloadWithFallbackAsync(vm, folder, prog, default, scope);
+            OnPropertyChanged(nameof(SelectedItemIsDownloaded));
+            ShowFileMetadata(vm);
+            OpenFile(path);
             StatusMessage = $"Viewing: {file.Name}";
         }
-        catch (Exception ex) { StatusMessage = $"View failed: {ex.Message}"; }
+        catch (Exception ex)
+        {
+            StatusMessage = $"View failed: {ex.Message}";
+            _dialogs.ShowError($"Could not view \"{file.Name}\":\n\n{ex.Message}");
+            return;
+        }
         finally { ShowProgress = false; }
+
+        await OfferRememberFolderAsync(scope, ev, section);
     }
 
     [RelayCommand]
     private async Task DownloadSelectedAsync()
     {
-        if (SelectedItem?.Model is not FileItem file || SelectedItem.IsDownloaded) return;
-        var vm = SelectedItem;
-
-        ShowProgress = true;
-        StatusMessage = $"Downloading {file.Name}…";
-        var prog = new Progress<double>(p =>
-        {
-            DownloadProgress = p * 100;
-            StatusMessage = $"Downloading {file.Name} — {p:P0}";
-        });
-        try
-        {
-            var path = await _downloader.DownloadFileAsync(file, GetEventDownloadFolder(), prog);
-            vm.NotifyDownloaded(path);
-            OnPropertyChanged(nameof(SelectedItemIsDownloaded));
+        if (SelectedItem is not { Model: FileItem } vm || vm.IsDownloaded) return;
+        if (await DownloadItemAsync(vm))
             ShowFileMetadata(vm);
-            StatusMessage = $"Downloaded: {file.Name}";
-        }
-        catch (Exception ex) { StatusMessage = $"Download failed: {ex.Message}"; }
-        finally { ShowProgress = false; }
     }
 
     [RelayCommand]
     private void OpenSelectedFile()
     {
         if (SelectedItem?.LocalPath is null) return;
-        try { Process.Start(new ProcessStartInfo(SelectedItem.LocalPath) { UseShellExecute = true }); }
-        catch { /* file may have moved */ }
+        if (!TryOpenFile(SelectedItem.LocalPath, out var error))
+            StatusMessage = $"Could not open {SelectedItem.Name}: {error}";
+    }
+
+    /// Downloads one file into the current event's folder (with folder fallback). Returns success.
+    private async Task<bool> DownloadItemAsync(TreeItemViewModel vm)
+    {
+        var ev = CurrentEvent?.Event;
+        var section = _activeSection;
+        var scope = new FallbackScope();
+
+        ShowProgress = true;
+        StatusMessage = $"Downloading {vm.Name}…";
+        var prog = new Progress<double>(p =>
+        {
+            DownloadProgress = p * 100;
+            StatusMessage = $"Downloading {vm.Name} — {p:P0}";
+        });
+        try
+        {
+            await DownloadWithFallbackAsync(vm, CurrentEventFolder(), prog, default, scope);
+            OnPropertyChanged(nameof(SelectedItemIsDownloaded));
+            StatusMessage = $"Downloaded: {vm.Name}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Download failed: {ex.Message}";
+            // The user already picked another folder and that failed too → make it visible
+            if (scope.Folder != null)
+                _dialogs.ShowError($"Could not download \"{vm.Name}\":\n\n{ex.Message}");
+            return false;
+        }
+        finally { ShowProgress = false; }
+
+        await OfferRememberFolderAsync(scope, ev, section);
+        return true;
     }
 
     // ── Folder download ──────────────────────────────────────────────────────
@@ -731,9 +798,7 @@ public partial class MainViewModel : ObservableObject
     private void EventOpenFolder(SportityEvent ev)
     {
         if (ev == null) return;
-        var folder = GetEventDownloadFolder(ev);
-        Directory.CreateDirectory(folder);
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+        OpenFolderInExplorer(ResolveEventFolder(ev, FindSection(ev)));
     }
 
     [RelayCommand]
@@ -769,12 +834,15 @@ public partial class MainViewModel : ObservableObject
         try
         {
             await EnsureEventLoadedAsync(ev);
+            var failed = 0;
             if (CurrentEvent != null)
             {
-                await AutoDownloadAllAsync(CurrentEvent.DisplayedItems, ct);
+                failed = await DownloadAllInCurrentEventAsync(ct);
                 CurrentEvent.RefreshAllBadges();
             }
-            StatusMessage = "All documents downloaded.";
+            StatusMessage = failed == 0
+                ? "All documents downloaded."
+                : $"{failed} document(s) could not be downloaded.";
         }
         catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
         catch (Exception ex) { StatusMessage = $"Download error: {ex.Message}"; }
@@ -790,7 +858,7 @@ public partial class MainViewModel : ObservableObject
             await EnsureEventLoadedAsync(ev);
             if (CurrentEvent == null) return;
 
-            _state.RemoveEventFiles(GetEventDownloadFolder());
+            _state.DeleteDownloadsUnder(CurrentEventFolder());
             CurrentEvent.MarkAllUnread();
             OnPropertyChanged(nameof(SelectedItemIsDownloaded));
             StatusMessage = "All documents removed and items reset to unread.";
@@ -828,9 +896,10 @@ public partial class MainViewModel : ObservableObject
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private ChannelSectionViewModel CreateSection(string url, string name, SavedChannelType type,
-        bool isCollapsed = false, string? channelCode = null, int? autoRefreshMinutes = null)
+        bool isCollapsed = false, string? channelCode = null, int? autoRefreshMinutes = null,
+        string? downloadFolder = null)
     {
-        var section = new ChannelSectionViewModel(url, name, type, isCollapsed, channelCode);
+        var section = new ChannelSectionViewModel(url, name, type, isCollapsed, channelCode, downloadFolder);
         section.OnRefreshRequested = s => _ = RefreshSectionAsync(s);
         section.AutoRefreshMinutes = autoRefreshMinutes ?? _state.Preferences.AutoRefreshMinutes;
         return section;
@@ -846,55 +915,424 @@ public partial class MainViewModel : ObservableObject
                 IsCollapsed = s.IsCollapsed,
                 SortOrder = i,
                 Type = s.Type,
-                AutoRefreshMinutes = s.AutoRefreshMinutes
+                AutoRefreshMinutes = s.AutoRefreshMinutes,
+                // Standalone events keep their folder in the per-event map instead
+                DownloadFolder = s.Type == SavedChannelType.Channel ? s.DownloadFolder : null
             })
             .ToList();
         _state.Save();
     }
 
-    private string GetEventDownloadFolder()
+    private async Task<int> DownloadAllInCurrentEventAsync(CancellationToken ct)
     {
-        var channelCode = _activeSection?.ChannelCode ?? string.Empty;
-        var eventName = CurrentEvent?.Event.Name ?? string.Empty;
-        if (string.IsNullOrEmpty(eventName)) eventName = "Event";
-
-        return string.IsNullOrEmpty(channelCode)
-            ? Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(eventName))
-            : Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(channelCode), SanitizeFolderName(eventName));
+        if (CurrentEvent == null) return 0;
+        var ev = CurrentEvent.Event;
+        var section = _activeSection;
+        var scope = new FallbackScope();
+        var failed = await DownloadAllAsync(CurrentEvent.DisplayedItems, ResolveEventFolder(ev, section), scope, ct);
+        await OfferRememberFolderAsync(scope, ev, section);
+        return failed;
     }
 
-    private string GetEventDownloadFolder(SportityEvent ev)
+    /// Downloads all files below <paramref name="items"/>; returns the number of files that failed.
+    private async Task<int> DownloadAllAsync(IEnumerable<TreeItemViewModel> items, string folder,
+        FallbackScope scope, CancellationToken ct)
     {
-        var channelCode = ev.ChannelCode;
-        var eventName = string.IsNullOrEmpty(ev.Name) ? "Event" : ev.Name;
-        return string.IsNullOrEmpty(channelCode)
-            ? Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(eventName))
-            : Path.Combine(_state.Preferences.DownloadFolder, SanitizeFolderName(channelCode), SanitizeFolderName(eventName));
-    }
-
-    private static string SanitizeFolderName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        return string.Concat(name.Select(c => invalid.Contains(c) ? '_' : c)).Trim();
-    }
-
-    private async Task AutoDownloadAllAsync(IEnumerable<TreeItemViewModel> items, CancellationToken ct)
-    {
-        foreach (var vm in items)
+        int failed = 0;
+        foreach (var vm in items.ToList())
         {
             ct.ThrowIfCancellationRequested();
-            if (vm.Model is FileItem file && !vm.IsDownloaded)
+            if (vm.Model is FileItem && !vm.IsDownloaded)
+            {
+                try { await DownloadWithFallbackAsync(vm, folder, null, ct, scope); }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch { failed++; }
+            }
+            if (vm.Children.Count > 0)
+                failed += await DownloadAllAsync(vm.Children, folder, scope, ct);
+        }
+        return failed;
+    }
+
+    // ── Download fallback (folder picker when the target folder can't be written) ──
+
+    /// Remembers the user's fallback choice for one user action (a single file or a bulk
+    /// download), so a bulk download asks at most once.
+    private sealed class FallbackScope
+    {
+        public string? Folder;
+        public bool Declined;
+    }
+
+    private static bool IsNetworkError(Exception ex) =>
+        ex is HttpRequestException or HttpIOException
+        || ex is TaskCanceledException { InnerException: TimeoutException };
+
+    /// <summary>
+    /// Downloads the file of <paramref name="vm"/> into <paramref name="targetFolder"/>. If writing
+    /// fails because of the local file system (permissions, file in use…), asks once per scope for
+    /// another folder and retries there; later files in the same scope go straight to that folder.
+    /// </summary>
+    private async Task<string> DownloadWithFallbackAsync(TreeItemViewModel vm, string targetFolder,
+        IProgress<double>? progress, CancellationToken ct, FallbackScope scope)
+    {
+        var file = (FileItem)vm.Model;
+        string path;
+        try
+        {
+            path = await _downloader.DownloadFileAsync(file, scope.Folder ?? targetFolder, progress, ct);
+        }
+        catch (LocalFileException ex) when (scope.Folder == null && !scope.Declined)
+        {
+            var chosen = AskFallbackFolder($"Could not save \"{file.Name}\"", ex, targetFolder);
+            if (chosen == null) { scope.Declined = true; throw; }
+            scope.Folder = chosen;
+            path = await _downloader.DownloadFileAsync(file, chosen, progress, ct);
+        }
+        vm.NotifyDownloaded(path);
+        return path;
+    }
+
+    private string? AskFallbackFolder(string what, Exception ex, string? initialFolder)
+    {
+        var reason = ShortReason(ex);
+        StatusMessage = $"{what}: {ex.Message}";
+        return PickWritableFolder($"{what} ({reason}) — choose a folder to download to", initialFolder);
+    }
+
+    /// A short, path-free explanation for dialog titles.
+    private static string ShortReason(Exception ex)
+    {
+        var inner = ex is LocalFileException { InnerException: { } i } ? i : ex;
+        const int sharingViolation = unchecked((int)0x80070020), lockViolation = unchecked((int)0x80070021);
+        return inner switch
+        {
+            UnauthorizedAccessException => "access denied",
+            DirectoryNotFoundException => "folder not found",
+            PathTooLongException => "path too long",
+            IOException io when io.HResult is sharingViolation or lockViolation => "the file is open in another program",
+            IOException io when io.HResult == unchecked((int)0x80070070) => "disk is full",
+            _ => inner.Message.TrimEnd('.')
+        };
+    }
+
+    /// After a fallback folder was used, offer to make it the event's download folder.
+    private async Task OfferRememberFolderAsync(FallbackScope scope, SportityEvent? ev, ChannelSectionViewModel? section)
+    {
+        if (scope.Folder == null || ev == null) return;
+        if (PathHelper.SameFolder(ResolveEventFolder(ev, section), scope.Folder)) return;
+
+        var answer = _dialogs.Ask(
+            $"Use this folder for all downloads of \"{ev.Name}\" from now on?\n\n{scope.Folder}",
+            MessageBoxButton.YesNo, MessageBoxResult.No);
+        if (answer == MessageBoxResult.Yes)
+            await ChangeEventFolderAsync(ev, section, scope.Folder);
+    }
+
+    /// Folder picker that only accepts folders SportityGui can actually write to.
+    private string? PickWritableFolder(string title, string? initialFolder)
+    {
+        while (true)
+        {
+            var picked = _dialogs.PickFolder(title, initialFolder);
+            if (picked == null) return null;
+            if (PathHelper.CanWrite(picked, out var error)) return picked;
+            _dialogs.ShowError($"SportityGui cannot write to\n{picked}\n\n{error}\n\nPlease choose another folder.");
+            initialFolder = picked;
+        }
+    }
+
+    // ── Download folder resolution ──────────────────────────────────────────
+    // Event folder = custom event folder
+    //             ?? (custom channel folder ?? DownloadFolder/ChannelCode) / EventName
+    //             ?? DownloadFolder/EventName   (when no channel code is known)
+
+    private ChannelSectionViewModel? FindSection(SportityEvent ev) =>
+        Channels.FirstOrDefault(s => s.Events.Contains(ev))
+        ?? Channels.FirstOrDefault(s => s.Events.Any(e => e.Url == ev.Url))
+        ?? Channels.FirstOrDefault(s => s.Type == SavedChannelType.StandaloneEvent && s.Url == ev.Url);
+
+    /// The event of a standalone-event section (synthesised if it hasn't loaded yet).
+    private static SportityEvent SectionEvent(ChannelSectionViewModel section) =>
+        section.Events.FirstOrDefault(e => e.Url == section.Url)
+        ?? new SportityEvent
+        {
+            Id = ScraperService.ParseEventUrl(section.Url).eventId,
+            Name = section.Name,
+            ChannelCode = section.ChannelCode,
+            Url = section.Url
+        };
+
+    /// Base folder holding a channel's event folders; null when no channel code is known.
+    private string? ChannelBaseFolder(ChannelSectionViewModel? section, string channelCode)
+    {
+        if (section is { Type: SavedChannelType.Channel, HasCustomFolder: true })
+            return section.DownloadFolder;
+        var code = !string.IsNullOrEmpty(section?.ChannelCode) ? section.ChannelCode : channelCode;
+        return string.IsNullOrEmpty(code)
+            ? null
+            : Path.Combine(_state.Preferences.DownloadFolder, PathHelper.SanitizeName(code));
+    }
+
+    private string ResolveEventFolder(SportityEvent ev, ChannelSectionViewModel? section)
+    {
+        if (_state.GetEventFolder(ev.Url) is { } custom) return custom;
+        var eventName = PathHelper.SanitizeName(string.IsNullOrEmpty(ev.Name) ? "Event" : ev.Name);
+        return Path.Combine(ChannelBaseFolder(section, ev.ChannelCode) ?? _state.Preferences.DownloadFolder, eventName);
+    }
+
+    private string CurrentEventFolder() =>
+        CurrentEvent != null
+            ? ResolveEventFolder(CurrentEvent.Event, _activeSection)
+            : _state.Preferences.DownloadFolder;
+
+    // ── Custom download folders (sidebar context menus) ─────────────────────
+
+    [RelayCommand]
+    private async Task EventSetFolderAsync(SportityEvent ev)
+    {
+        if (ev == null) return;
+        var section = FindSection(ev);
+        var picked = PickWritableFolder($"Choose the download folder for \"{ev.Name}\"", ResolveEventFolder(ev, section));
+        if (picked != null)
+            await ChangeEventFolderAsync(ev, section, picked);
+    }
+
+    [RelayCommand]
+    private async Task EventResetFolderAsync(SportityEvent ev)
+    {
+        if (ev == null) return;
+        if (_state.GetEventFolder(ev.Url) == null)
+        {
+            StatusMessage = $"\"{ev.Name}\" already uses the default download folder.";
+            return;
+        }
+        await ChangeEventFolderAsync(ev, FindSection(ev), null);
+    }
+
+    [RelayCommand]
+    private async Task SectionSetFolderAsync(ChannelSectionViewModel section)
+    {
+        if (section == null) return;
+        if (section.Type == SavedChannelType.StandaloneEvent)
+        {
+            await EventSetFolderAsync(SectionEvent(section));
+            return;
+        }
+        var current = ChannelBaseFolder(section, section.ChannelCode) ?? _state.Preferences.DownloadFolder;
+        var picked = PickWritableFolder(
+            $"Choose the download folder for channel \"{section.Name}\" (each event gets its own subfolder)", current);
+        if (picked != null)
+            await ChangeChannelFolderAsync(section, picked);
+    }
+
+    [RelayCommand]
+    private async Task SectionResetFolderAsync(ChannelSectionViewModel section)
+    {
+        if (section == null) return;
+        if (section.Type == SavedChannelType.StandaloneEvent)
+        {
+            await EventResetFolderAsync(SectionEvent(section));
+            return;
+        }
+        if (!section.HasCustomFolder)
+        {
+            StatusMessage = $"\"{section.Name}\" already uses the default download folder.";
+            return;
+        }
+        await ChangeChannelFolderAsync(section, null);
+    }
+
+    [RelayCommand]
+    private void SectionOpenFolder(ChannelSectionViewModel section)
+    {
+        if (section == null) return;
+        OpenFolderInExplorer(section.Type == SavedChannelType.StandaloneEvent
+            ? ResolveEventFolder(SectionEvent(section), section)
+            : ChannelBaseFolder(section, section.ChannelCode) ?? _state.Preferences.DownloadFolder);
+    }
+
+    private async Task ChangeEventFolderAsync(SportityEvent ev, ChannelSectionViewModel? section, string? newCustom)
+    {
+        var previous = _state.GetEventFolder(ev.Url);
+        var oldFolder = ResolveEventFolder(ev, section);
+        _state.SetEventFolder(ev.Url, newCustom);
+        var newFolder = ResolveEventFolder(ev, section);
+
+        if (!await OfferMoveFilesAsync(oldFolder, newFolder, []))
+        {
+            _state.SetEventFolder(ev.Url, previous);
+            StatusMessage = "Download folder not changed.";
+            return;
+        }
+
+        if (section is { Type: SavedChannelType.StandaloneEvent })
+            section.DownloadFolder = newCustom;
+        AfterFolderChange();
+        StatusMessage = $"\"{ev.Name}\" now downloads to {newFolder}";
+    }
+
+    private async Task ChangeChannelFolderAsync(ChannelSectionViewModel section, string? newCustom)
+    {
+        var previous = section.DownloadFolder;
+        var oldBase = ChannelBaseFolder(section, section.ChannelCode);
+        section.DownloadFolder = newCustom;
+        var newBase = ChannelBaseFolder(section, section.ChannelCode);
+
+        // Events with their own custom folder are not affected by the channel folder
+        var exclude = section.Events.Select(e => _state.GetEventFolder(e.Url)).OfType<string>().ToList();
+        if (oldBase != null && newBase != null && !await OfferMoveFilesAsync(oldBase, newBase, exclude))
+        {
+            section.DownloadFolder = previous;
+            StatusMessage = "Download folder not changed.";
+            return;
+        }
+
+        PersistChannels();
+        AfterFolderChange();
+        StatusMessage = $"Channel \"{section.Name}\" now downloads to {newBase}";
+    }
+
+    /// Called after the default download folder was changed in Preferences.
+    public async Task OnDefaultDownloadFolderChangedAsync(string oldFolder, string newFolder)
+    {
+        // Channels/events with a custom folder are not affected by the default folder
+        var exclude = Channels
+            .Where(s => s.Type == SavedChannelType.Channel && s.HasCustomFolder)
+            .Select(s => s.DownloadFolder!)
+            .Concat(_state.State.EventDownloadFolders.Values)
+            .ToList();
+
+        if (!await OfferMoveFilesAsync(oldFolder, newFolder, exclude))
+        {
+            _state.Preferences.DownloadFolder = oldFolder;
+            _state.SavePreferences();
+            StatusMessage = "Download folder not changed.";
+            return;
+        }
+        AfterFolderChange();
+    }
+
+    /// <summary>
+    /// Asks whether downloaded files under <paramref name="oldRoot"/> should move to
+    /// <paramref name="newRoot"/> (keeping their relative paths). Returns false when the user
+    /// cancels, meaning the folder change should be reverted.
+    /// </summary>
+    private async Task<bool> OfferMoveFilesAsync(string oldRoot, string newRoot, IReadOnlyCollection<string> excludeRoots)
+    {
+        if (PathHelper.SameFolder(oldRoot, newRoot)) return true;
+
+        var files = _state.GetDownloadsUnder(oldRoot)
+            .Where(d => File.Exists(d.Record.LocalPath)
+                        && !PathHelper.IsUnder(d.Record.LocalPath, newRoot)
+                        && !excludeRoots.Any(x => PathHelper.IsUnder(d.Record.LocalPath, x)))
+            .ToList();
+        if (files.Count == 0) return true;
+
+        var answer = _dialogs.Ask(
+            $"{files.Count} downloaded file(s) are in\n{oldRoot}\n\nMove them to\n{newRoot}?\n\n" +
+            "Yes — move the files\nNo — leave the files where they are\nCancel — keep the old folder",
+            MessageBoxButton.YesNoCancel, MessageBoxResult.No);
+        if (answer == MessageBoxResult.Cancel) return false;
+        if (answer != MessageBoxResult.Yes) return true;
+
+        var jobs = files
+            .Select(f => (f.Id, Source: f.Record.LocalPath,
+                          Target: Path.Combine(newRoot, Path.GetRelativePath(oldRoot, f.Record.LocalPath))))
+            .ToList();
+
+        StatusMessage = $"Moving {jobs.Count} file(s)…";
+        DownloadProgress = 0;
+        ShowProgress = true;
+        var progress = new Progress<double>(p => DownloadProgress = p * 100);
+        try
+        {
+            var (moved, errors) = await Task.Run(() => MoveFiles(jobs, oldRoot, progress));
+            _state.UpdateDownloadPaths(moved);
+
+            if (errors.Count == 0)
+                StatusMessage = $"Moved {moved.Count} file(s) to {newRoot}";
+            else
+            {
+                StatusMessage = $"Moved {moved.Count} file(s); {errors.Count} could not be moved.";
+                _dialogs.ShowError($"{errors.Count} file(s) could not be moved and stay in the old folder:\n\n"
+                                   + string.Join("\n", errors.Take(10))
+                                   + (errors.Count > 10 ? "\n…" : string.Empty));
+            }
+        }
+        finally { ShowProgress = false; }
+        return true;
+    }
+
+    private static (List<(string Id, string NewPath)> Moved, List<string> Errors) MoveFiles(
+        List<(string Id, string Source, string Target)> jobs, string oldRoot, IProgress<double> progress)
+    {
+        var moved = new List<(string, string)>();
+        var errors = new List<string>();
+        for (int i = 0; i < jobs.Count; i++)
+        {
+            var (id, source, target) = jobs[i];
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                target = PathHelper.UniqueFilePath(target);
+                File.Move(source, target);
+                moved.Add((id, target));
+            }
+            catch (Exception ex) { errors.Add($"{Path.GetFileName(source)}: {ex.Message}"); }
+            progress.Report((i + 1.0) / jobs.Count);
+        }
+
+        // Remove folders left empty below the old root (never above it)
+        foreach (var dir in jobs.Select(j => Path.GetDirectoryName(j.Source)).Distinct())
+        {
+            var d = dir;
+            while (d != null && PathHelper.IsUnder(d, oldRoot))
             {
                 try
                 {
-                    var path = await _downloader.DownloadFileAsync(file, GetEventDownloadFolder(), null, ct);
-                    vm.NotifyDownloaded(path);
+                    if (!Directory.Exists(d) || Directory.EnumerateFileSystemEntries(d).Any()) break;
+                    Directory.Delete(d);
                 }
-                catch { /* continue */ }
+                catch { break; }
+                d = Path.GetDirectoryName(d);
             }
-            if (vm.Children.Count > 0)
-                await AutoDownloadAllAsync(vm.Children, ct);
         }
+        return (moved, errors);
+    }
+
+    private void AfterFolderChange()
+    {
+        CurrentEvent?.ReloadDownloadState();
+        CurrentEvent?.RefreshAllBadges();
+        OnPropertyChanged(nameof(SelectedItemIsDownloaded));
+        if (SelectedItem is { IsFile: true } vm) ShowFileMetadata(vm);
+    }
+
+    // ── Shell helpers ────────────────────────────────────────────────────────
+
+    private void OpenFile(string path) => _dialogs.OpenFile(path);
+
+    private bool TryOpenFile(string path, out string error)
+    {
+        try
+        {
+            if (!File.Exists(path)) { error = "file not found"; return false; }
+            OpenFile(path);
+            error = string.Empty;
+            return true;
+        }
+        catch (Exception ex) { error = ex.Message; return false; }
+    }
+
+    private void OpenFolderInExplorer(string folder)
+    {
+        try
+        {
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex) { StatusMessage = $"Could not open folder: {ex.Message}"; }
     }
 
     public async Task CheckForUpdateAsync()
@@ -949,6 +1387,8 @@ public partial class MainViewModel : ObservableObject
             meta.AppendLine($"Downloaded:  {record.DownloadedAt.ToLocalTime():g}");
             meta.AppendLine($"Local path:  {record.LocalPath}");
         }
+        else if (CurrentEvent != null)
+            meta.AppendLine($"Saves to:    {CurrentEventFolder()}");
         DetailMetadata = meta.ToString();
         DetailText = string.Empty;
     }

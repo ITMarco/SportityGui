@@ -76,35 +76,40 @@ public class StateService
     public DownloadRecord? GetDownloadRecord(string id) =>
         State.DownloadedFiles.TryGetValue(id, out var r) ? r : null;
 
-    public void DeleteChannelFiles(string channelFolderPath)
+    /// Deletes all recorded downloads located under <paramref name="folder"/> and forgets them.
+    public void DeleteDownloadsUnder(string folder)
     {
-        var prefix = channelFolderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                     + Path.DirectorySeparatorChar;
-        var toRemove = State.DownloadedFiles
-            .Where(kvp => kvp.Value.LocalPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Select(kvp => kvp.Key)
-            .ToList();
-        foreach (var key in toRemove)
+        foreach (var (id, record) in GetDownloadsUnder(folder))
         {
-            try { File.Delete(State.DownloadedFiles[key].LocalPath); } catch { }
-            State.DownloadedFiles.Remove(key);
+            try { File.Delete(record.LocalPath); } catch { }
+            State.DownloadedFiles.Remove(id);
         }
         Save();
     }
 
-    public void RemoveEventFiles(string eventFolderPath)
-    {
-        var prefix = eventFolderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                     + Path.DirectorySeparatorChar;
-        var toRemove = State.DownloadedFiles
-            .Where(kvp => kvp.Value.LocalPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Select(kvp => kvp.Key)
+    public List<(string Id, DownloadRecord Record)> GetDownloadsUnder(string folder) =>
+        State.DownloadedFiles
+            .Where(kvp => PathHelper.IsUnder(kvp.Value.LocalPath, folder))
+            .Select(kvp => (kvp.Key, kvp.Value))
             .ToList();
-        foreach (var key in toRemove)
-        {
-            try { File.Delete(State.DownloadedFiles[key].LocalPath); } catch { }
-            State.DownloadedFiles.Remove(key);
-        }
+
+    public void UpdateDownloadPaths(IEnumerable<(string Id, string NewPath)> moves)
+    {
+        foreach (var (id, newPath) in moves)
+            if (State.DownloadedFiles.TryGetValue(id, out var record))
+                record.LocalPath = newPath;
+        Save();
+    }
+
+    // ── Per-event custom download folders (keyed by event URL) ──
+
+    public string? GetEventFolder(string eventUrl) =>
+        State.EventDownloadFolders.TryGetValue(eventUrl, out var f) && !string.IsNullOrWhiteSpace(f) ? f : null;
+
+    public void SetEventFolder(string eventUrl, string? folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder)) State.EventDownloadFolders.Remove(eventUrl);
+        else State.EventDownloadFolders[eventUrl] = folder;
         Save();
     }
 

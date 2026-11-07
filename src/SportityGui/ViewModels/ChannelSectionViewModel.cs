@@ -22,6 +22,16 @@ public partial class ChannelSectionViewModel : ObservableObject
 
     [ObservableProperty] private string _refreshCountdown = string.Empty;
 
+    /// <summary>
+    /// Custom download folder, or null for the default.
+    /// Channel: base folder; each event gets a subfolder. StandaloneEvent: the event's own folder.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCustomFolder))]
+    private string? _downloadFolder;
+
+    public bool HasCustomFolder => !string.IsNullOrEmpty(DownloadFolder);
+
     private DispatcherTimer? _timer;
     private int _countdownSec;
 
@@ -37,8 +47,9 @@ public partial class ChannelSectionViewModel : ObservableObject
     internal Action<ChannelSectionViewModel>? OnRefreshRequested { get; set; }
 
     public ChannelSectionViewModel(string url, string name, SavedChannelType type,
-        bool isCollapsed = false, string? channelCode = null)
+        bool isCollapsed = false, string? channelCode = null, string? downloadFolder = null)
     {
+        _downloadFolder = downloadFolder;
         Url = url;
         ChannelCode = channelCode ?? ScraperService.ParseChannelCode(url);
         _name = name;

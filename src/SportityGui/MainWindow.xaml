@@ -271,11 +271,34 @@
 
                                         <!-- Channel header row -->
                                         <Border Padding="6,7,6,7" Background="Transparent"
-                                                Cursor="Hand">
+                                                Cursor="Hand"
+                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Set download folder…"
+                                                              Command="{Binding PlacementTarget.Tag.SectionSetFolderCommand,
+                                                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                         RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                    <MenuItem Header="Use default download folder"
+                                                              IsEnabled="{Binding PlacementTarget.DataContext.HasCustomFolder,
+                                                                                  RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              Command="{Binding PlacementTarget.Tag.SectionResetFolderCommand,
+                                                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                         RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                    <MenuItem Header="Open download folder"
+                                                              Command="{Binding PlacementTarget.Tag.SectionOpenFolderCommand,
+                                                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                         RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="18" />
                                                     <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="Auto" />
@@ -312,8 +335,20 @@
                                                            VerticalAlignment="Center"
                                                            Margin="4,0,2,0" />
 
-                                                <!-- Refresh button -->
+                                                <!-- Custom download folder indicator (click = open folder) -->
                                                 <Button Grid.Column="3"
+                                                        Command="{Binding DataContext.SectionOpenFolderCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource SidebarIconButton}"
+                                                        ToolTip="{Binding DownloadFolder}"
+                                                        ToolTipService.InitialShowDelay="200"
+                                                        Visibility="{Binding HasCustomFolder, Converter={StaticResource BoolToVis}}">
+                                                    <icons:PackIconMaterial Kind="FolderMarker" Width="12" Height="12" />
+                                                </Button>
+
+                                                <!-- Refresh button -->
+                                                <Button Grid.Column="4"
                                                         Command="{Binding RefreshCommand}"
                                                         Style="{StaticResource SidebarIconButton}"
                                                         ToolTip="Refresh channel">
@@ -321,7 +356,7 @@
                                                 </Button>
 
                                                 <!-- Remove button -->
-                                                <Button Grid.Column="4"
+                                                <Button Grid.Column="5"
                                                         Style="{StaticResource SidebarIconButton}"
                                                         ToolTip="Remove channel"
                                                         Click="RemoveChannel_Click">
@@ -393,6 +428,17 @@
                                                                                                      RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                                                 <MenuItem Header="Copy URL"
                                                                           Command="{Binding PlacementTarget.Tag.EventCopyUrlCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Set download folder…"
+                                                                          Command="{Binding PlacementTarget.Tag.EventSetFolderCommand,
+                                                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding PlacementTarget.DataContext,
+                                                                                                     RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                <MenuItem Header="Use default download folder"
+                                                                          Command="{Binding PlacementTarget.Tag.EventResetFolderCommand,
                                                                                             RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding PlacementTarget.DataContext,
                                                                                                      RelativeSource={RelativeSource AncestorType=ContextMenu}}" />

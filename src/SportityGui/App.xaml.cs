@@ -60,6 +60,7 @@ public partial class App : Application
         services.AddSingleton<DownloadService>();
         services.AddSingleton<TrayService>();
         services.AddSingleton<UpdateService>();
+        services.AddSingleton<IDialogService, DialogService>();
         services.AddTransient<MainViewModel>();
     }
 }

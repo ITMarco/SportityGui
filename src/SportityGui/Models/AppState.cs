@@ -8,6 +8,8 @@ public class AppState
     public Dictionary<string, DownloadRecord> DownloadedFiles { get; set; } = [];
     public List<SavedChannel> Channels { get; set; } = [];
     public HashSet<string> NewItems { get; set; } = [];
+    /// Custom download folder per event URL (overrides channel and default folder)
+    public Dictionary<string, string> EventDownloadFolders { get; set; } = [];
 }
 
 public class DownloadRecord
