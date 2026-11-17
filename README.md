@@ -1,124 +1,125 @@
-# Sportity for Windows (SportityGui)
+🇳🇱 **Nederlands** · 🇩🇪 [Deutsch](readmeGER.md) · 🇬🇧 [English](readmeEN.md)
 
-A Windows desktop app for browsing [Sportity](https://webapp.sportity.com) rallying channels and events. Scrapes the Sportity website and presents channels, events, folders, files and messages in a clean, modern interface with full offline download support.
+<p align="center">
+  <img src="sportitylogo1.png" alt="SportityGui logo" width="96">
+</p>
 
-Direct download for x64 Windows executable packaged as zip available on the releases tab or on shoarmateam: [here](http://www.shoarmateam.nl/rally/SportityGui/SportityGui-current.zip) 
+<h1 align="center">Sportity voor Windows</h1>
 
-## Features
+<p align="center">
+  <b>Alle rallydocumenten van Sportity overzichtelijk op je pc — automatisch bijgewerkt en altijd offline beschikbaar.</b>
+</p>
 
-### Channels & events
-- Paste any Sportity **channel** or **event** URL — auto-detected and added to the sidebar
-- Type just a **channel code** (e.g. `ELE`) — the app tries the full channel URL automatically; falls back to an event URL if the channel isn't found
-- **Multiple channels** loaded simultaneously in the left panel, each collapsible
-- **Single-event channels** (pages that serve files directly at the channel URL) are detected and loaded automatically
-- Newest channel always appears at the top; channels are **drag-and-drop reorderable**
-- All loaded channels and their order **restore on next launch** (re-scraped in the background with spinners)
+<p align="center">
+  <a href="https://github.com/ITMarco/SportityGui/releases/latest"><b>⬇️ Download de nieuwste versie</b></a>
+  &nbsp;·&nbsp;
+  <a href="http://www.shoarmateam.nl/rally/SportityGui/SportityGui-current.zip">Alternatieve download (zip)</a>
+</p>
+
+---
+
+## 🎬 Zie het in actie
 
 https://github.com/user-attachments/assets/8d3a0e05-ef58-494f-ac36-ca6c366efc12
 
-### Left panel
-- Bold channel name header with **· N events** count, collapse ▼/▶ chevron, ⟳ refresh, and ✕ remove buttons
-- Highlighted selection shows the currently open event
-- **Remove channel** dialog: keep or also delete all downloaded files from that channel
-- Loading spinner per channel header while scraping
+---
 
-### Center tree
-- Hierarchical folder/file/message tree with **NEW** corner-ribbon badge on unread items
-- Badges bubble up through parent folders; disappear immediately when all children are read
-- **Single-click** a file → show metadata only (name, first seen, download time, local path)
-- **Double-click** a file → download if needed, then open with the default application
-- **Auto-download** toggle — downloads all files automatically when loading an event
-- Bulk download via right-click → *Download all in folder*
-- Right-click → *Copy URL* or *Open containing folder*
-- Search/filter box above the tree
+## Waarom SportityGui?
 
-### Downloads
-- Files saved to `DownloadFolder / ChannelCode / EventName /`; no channel subfolder when channel code is unknown
-- Event folders use the display name (not the internal UUID)
-- **Download** button in the details panel for single files; switches to **Open** once downloaded
-- **Custom download folder per channel or event** — right-click a channel header or event → *Set download folder…* (a channel folder gets one subfolder per event; an event folder is used as-is). *Use default download folder* reverts it. A folder icon in the channel header shows a custom folder is set
-- When a download folder changes (per channel, per event, or the default in Preferences), the app offers to **move already-downloaded files** to the new folder
-- **View** opens the downloaded copy if there is one, otherwise downloads to the system temp folder (`%TEMP%\SportityGui\<file-id>\`) and opens it from there
-- If saving or viewing fails because of the local disk (access denied, file in use…), a **folder picker** lets you choose another folder, and you can keep that folder for the event
+Bij elke rally verschijnen er via [Sportity](https://webapp.sportity.com) voortdurend nieuwe documenten: bulletins, tijdschema's, startlijsten, uitslagen, mededelingen van de wedstrijdleiding. Steeds de website verversen om te zien of er iets nieuws is? Dat hoeft niet meer.
 
-### Auto-refresh
-- Per-channel/event refresh interval — `[− N min +]` in the toolbar shows and edits the active channel's interval
-- Countdown displayed in the status bar; fires in the background without blocking the UI
-- Global default interval set in Preferences applies to newly added channels
+**SportityGui doet het werk voor je:**
 
-### System tray
-- **Single instance** — starting SportityGui again brings the running copy to the front (also from the tray) instead of opening a second one. Copies in different folders run independently
-- **Start minimised** with `--minimized` command-line flag
-- **Minimize to tray** preference — hides from taskbar, shows in system tray with correct app icon
-- Double-click or context menu to restore; balloon notifications for new files and events
+- ✅ **Ziet direct wat nieuw is** — nieuwe documenten krijgen een duidelijk **NEW**-label
+- ✅ **Ververst automatisch** — op de achtergrond, zo vaak als jij wilt
+- ✅ **Downloadt alles automatisch** — netjes gesorteerd per kanaal en evenement
+- ✅ **Werkt ook zonder internet** — handig in het servicepark of op een afgelegen proef
+- ✅ **Meldt zich vanzelf** — een Windows-melding zodra er nieuwe bestanden of evenementen zijn
+- ✅ **Meerdere kanalen tegelijk** — volg alle rally's die jou interesseren in één venster
 
-### Preferences
-- Light / Dark / Follow system theme (VSCode-inspired dark palette)
-- Download folder picker (prompted on first run if not set)
-- Auto-download toggle
-- Auto-refresh interval (global default)
-- Minimize-to-tray option
+Ideaal voor rijders, navigators, teams, officials en iedereen die de rallysport op de voet volgt.
 
-### Updates
-- Checks for a new version at startup (optional) or via Preferences → *Check for updates*
-- Downloads the update (GitHub release `.exe`, or the shoarmateam `.zip` as fallback) and offers to **install it and restart** — the running exe is swapped in place, so settings and state next to it are kept
-- If the app folder isn't writable, the download is shown in Explorer to install by hand
+---
 
-### Notifications
-- Windows balloon notification when new files appear in a refreshed event
-- Notification when new events appear in a refreshed channel
+## 🚀 In 3 stappen aan de slag
 
-## Tech stack
+1. **Download** de nieuwste versie via de [Releases-pagina](https://github.com/ITMarco/SportityGui/releases/latest) (of de [zip](http://www.shoarmateam.nl/rally/SportityGui/SportityGui-current.zip)).
+2. **Start** `SportityGui.exe`. Installeren is niet nodig, en .NET hoef je ook niet apart te installeren. Bij de eerste start kies je een map waar de documenten worden opgeslagen.
+   > 💡 Toont Windows een blauw venster ("Windows heeft uw pc beschermd")? Klik dan op **Meer info** → **Toch uitvoeren**.
+3. **Plak** een Sportity-link in de invoerbalk — of typ alleen de **kanaalcode** (bijvoorbeeld `ELE`) — en druk op Enter. Klaar!
 
-| | |
-|---|---|
-| Framework | .NET 10, WPF |
-| Theme | ModernWpf 0.9.6 (Windows 11 Fluent Design) |
-| HTML scraping | AngleSharp |
-| MVVM | CommunityToolkit.Mvvm 8.x |
-| Icons | MahApps.Metro.IconPacks.Material |
-| Drag-and-drop | gong-wpf-dragdrop 4.0 |
-| System tray | System.Windows.Forms (UseWindowsForms) |
+Je kanalen worden onthouden en bij de volgende start automatisch opnieuw geladen.
 
-## Data files
+---
 
-These files live next to the `.exe` and are **not** committed to git:
+## ✨ Wat kun je ermee?
 
-| File | Purpose |
-|---|---|
-| `state.json` | Read/unread tracking, URL history, download records, saved channels |
-| `preferences.json` | Theme, download folder, auto-refresh interval, auto-download, minimize-to-tray |
+### Kanalen en evenementen
+- Plak een willekeurige Sportity-link van een **kanaal** of **evenement**; de app herkent zelf wat het is
+- Typ alleen een **kanaalcode** (bijv. `ELE`) en de app zoekt de juiste pagina erbij
+- Volg **meerdere kanalen tegelijk** in het linkerpaneel, elk in- en uitklapbaar
+- Bepaal zelf de volgorde door kanalen te **verslepen**
 
-Delete `state.json` to reset all read/unread state and channel list without losing preferences.
+### Documenten bekijken
+- Overzichtelijke boomstructuur met mappen, bestanden en berichten
+- **NEW**-labels laten precies zien wat je nog niet gezien hebt — ook op mapniveau
+- **Eén keer klikken** toont de details van een bestand
+- **Dubbelklikken** downloadt het bestand (indien nodig) en opent het direct
+- **Zoekveld** om snel het juiste document te vinden
 
-## Building
+### Downloaden
+- **Automatisch downloaden** van alle bestanden bij het laden van een evenement
+- Of zelf kiezen: rechtsklik op een map → *Download all documents*
+- Bestanden worden netjes opgeslagen als `Downloadmap \ Kanaalcode \ Evenementnaam \`
+- Een **eigen downloadmap per kanaal of evenement** instellen (rechtsklik → *Set download folder…*)
+- Wijzig je de downloadmap, dan biedt de app aan om **bestaande downloads mee te verhuizen**
+
+### Automatisch verversen en meldingen
+- Stel per kanaal of evenement in hoe vaak er gecontroleerd wordt (`[− N min +]` in de werkbalk)
+- Een aftelklok in de statusbalk laat zien wanneer de volgende controle is
+- **Windows-meldingen** bij nieuwe bestanden of nieuwe evenementen
+
+### Systeemvak
+- **Minimaliseren naar het systeemvak** — de app blijft stilletjes op de achtergrond meekijken
+- Start eventueel direct geminimaliseerd met `--minimized`
+- Start je de app per ongeluk nog een keer? Dan komt gewoon het bestaande venster naar voren
+
+### Instellingen en updates
+- **Licht, donker** of het Windows-thema volgen
+- De app **controleert zelf op updates**, downloadt ze en installeert ze met één klik — je instellingen blijven behouden
+
+---
+
+## ❓ Veelgestelde vragen
+
+**Kost het iets?**
+Nee. SportityGui is gratis en open source (GPL-3.0-licentie).
+
+**Heb ik een Sportity-account nodig?**
+Nee. De app leest dezelfde openbare pagina's die je ook in de browser op [webapp.sportity.com](https://webapp.sportity.com) ziet.
+
+**Waar vind ik de kanaalcode of link?**
+Open het kanaal of evenement op [webapp.sportity.com](https://webapp.sportity.com) en kopieer de link uit de adresbalk van je browser. Plak die in SportityGui.
+
+**Hoe begin ik helemaal opnieuw?**
+Verwijder `state.json` naast het `.exe`-bestand. Je kanalen en de gelezen/ongelezen-status worden dan gewist; je instellingen blijven bewaard.
+
+**Is de app zelf ook in het Nederlands?**
+De menu's van de app zijn in het Engels, maar alles werkt met een paar klikken en spreekt voor zich — kijk de video hierboven maar.
+
+**Is dit een officiële app van Sportity?**
+Nee, SportityGui is een onafhankelijk hulpmiddel gemaakt door een rallyliefhebber.
+
+---
+
+## 🛠️ Voor ontwikkelaars
+
+Technische details — tech stack, bouwen, publiceren en databestanden — vind je in de [Engelstalige README](readmeEN.md).
 
 ```
 dotnet build src/SportityGui/SportityGui.csproj
 ```
 
-## Publishing a standalone .exe
+---
 
-```
-dotnet publish src/SportityGui/SportityGui.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
-```
-
-The `.exe` will be in `src/SportityGui/bin/Release/net10.0-windows/win-x64/publish/`.
-
-## Command-line flags
-
-| Flag | Effect |
-|---|---|
-| `--minimized` | Start directly to system tray without showing the window |
-
-## Milestones
-
-- [x] **Milestone 1** — Project scaffold, URL input, theme, state service, HTTP connectivity
-- [x] **Milestone 2** — Scraper + tree view: channel event list, folder/file/text hierarchy, icons, expand/collapse
-- [x] **Milestone 3** — Read/unread state + first-seen tracking; unread badges bubble up through folders
-- [x] **Milestone 4** — File download + metadata panel; double-click opens; downloads organised by channel/event; recent URL history
-- [x] **Milestone 5** — Text/message rendering; search/filter; channel scraping fixes; correct file extensions
-- [x] **Milestone 6** — Preferences dialog: theme, download folder, auto-refresh interval, auto-download toggle
-- [x] **Milestone 7** — System tray: `--minimized` flag, minimize-to-tray preference, balloon notifications, NEW corner ribbon badge, per-folder badge bubbling
-- [x] **Milestone 8** — Multi-channel view: multiple channels in left panel, collapse/expand, drag-and-drop reorder, per-channel refresh timers, remove with optional file cleanup, startup restoration, single-click = details only / double-click = download + open
-- [x] **Milestone 9** — Smart URL shorthand: single-word input tried as channel code then event; auto-prefix of full Sportity URL
+<p align="center">Gemaakt met ❤️ voor de rallysport · <a href="LICENSE">GPL-3.0</a></p>
